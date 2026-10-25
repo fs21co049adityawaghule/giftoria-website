@@ -1,223 +1,169 @@
 import React, { useState } from 'react';
-import { MessageCircle, Mail, Instagram, Phone, MapPin, Upload, CheckCircle2, X, AlertCircle } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, MessageCircle, Send, CheckCircle2 } from 'lucide-react';
 import { businessConfig } from '../config/businessConfig';
 import { useToast } from '../context/ToastContext';
 
 export const ContactPage: React.FC = () => {
   const { showToast } = useToast();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    service: 'customized-gifts',
-    message: '',
-  });
-
-  const [attachment, setAttachment] = useState<{ name: string; size: string } | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUploadError(null);
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > businessConfig.uploadMaxSizeBytes) {
-        const err = 'Attachment must be 1 MB or smaller.';
-        setUploadError(err);
-        showToast(err, 'error');
-        return;
-      }
-      setAttachment({
-        name: file.name,
-        size: `${(file.size / 1024).toFixed(1)} KB`,
-      });
-      showToast('Attachment uploaded successfully!', 'success');
-    }
-  };
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.email || !formData.message) {
-      showToast('Please fill in all required fields', 'error');
+    if (!name || !email || !message) {
+      showToast('Please fill in all required fields.', 'error');
       return;
     }
-    setSubmitted(true);
-    showToast('Inquiry sent successfully! We will contact you shortly.', 'success');
+    showToast('Thank you! Your message has been sent to SkyGift Customer Support.', 'success');
+    setName('');
+    setEmail('');
+    setSubject('');
+    setMessage('');
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12 pb-24">
-      <div className="text-center max-w-2xl mx-auto space-y-2">
-        <h1 className="font-serif font-bold text-3xl sm:text-4xl text-giftoria-wine-900">
-          Contact GIFTORIA Studio
-        </h1>
-        <p className="text-xs sm:text-sm text-gray-600">
-          Have a bulk enquiry, custom 3D design, or special gifting request? Get in touch with our team.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <div className="bg-[#F8FCFF] min-h-screen py-12 text-slate-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         
-        {/* Left Column: Quick Contact Cards */}
-        <div className="lg:col-span-5 space-y-4">
-          <a
-            href={`https://wa.me/${businessConfig.whatsappNumber}?text=${encodeURIComponent("Hello GIFTORIA, I would like to enquire about a customized product.")}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-4 bg-emerald-900 text-white p-5 rounded-3xl shadow-md hover:bg-emerald-950 transition-all group"
-          >
-            <div className="p-3 rounded-2xl bg-emerald-800 text-white">
-              <MessageCircle className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-emerald-300">Instant WhatsApp Chat</div>
-              <div className="font-serif font-bold text-base">{businessConfig.whatsappDisplay}</div>
-            </div>
-          </a>
-
-          <a
-            href={`mailto:${businessConfig.email}`}
-            className="flex items-center gap-4 bg-white border border-gray-200 p-5 rounded-3xl shadow-sm hover:border-giftoria-wine-800 transition-all text-giftoria-charcoal-900"
-          >
-            <div className="p-3 rounded-2xl bg-giftoria-wine-50 text-giftoria-wine-800">
-              <Mail className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-gray-500">Email Support</div>
-              <div className="font-serif font-bold text-sm text-giftoria-wine-900">{businessConfig.email}</div>
-            </div>
-          </a>
-
-          <a
-            href={businessConfig.instagramUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-4 bg-white border border-gray-200 p-5 rounded-3xl shadow-sm hover:border-pink-500 transition-all text-giftoria-charcoal-900"
-          >
-            <div className="p-3 rounded-2xl bg-pink-50 text-pink-600">
-              <Instagram className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-gray-500">Instagram Creation Showcase</div>
-              <div className="font-serif font-bold text-sm text-pink-600">@{businessConfig.instagramUsername}</div>
-            </div>
-          </a>
-
-          <div className="bg-giftoria-cream-100 p-5 rounded-3xl border border-giftoria-wine-800/15 space-y-2 text-xs text-giftoria-wine-900">
-            <div className="font-bold flex items-center gap-1.5">
-              <MapPin className="w-4 h-4 text-giftoria-wine-800" />
-              <span>Studio Location &amp; Hours</span>
-            </div>
-            <p className="text-gray-600">{businessConfig.address}</p>
-            <p className="text-gray-500 text-[11px] pt-1">{businessConfig.workingHours}</p>
-          </div>
+        <div className="text-center max-w-2xl mx-auto space-y-3">
+          <span className="text-xs font-bold uppercase tracking-wider text-sky-600 bg-sky-50 px-3 py-1 rounded-full border border-sky-100">
+            Get In Touch
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900">
+            We are Here to Help
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500">
+            Have questions about delivery slots, bulk corporate gifting, or cake customization? Reach out to us anytime.
+          </p>
         </div>
 
-        {/* Right Column: Inquiry Form with Attachment */}
-        <div className="lg:col-span-7 bg-white rounded-3xl p-6 sm:p-8 border border-giftoria-wine-800/10 shadow-sm space-y-4">
-          <h2 className="font-serif font-bold text-xl text-giftoria-wine-900">
-            Send an Inquiry Form
-          </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          {/* Contact Details Card */}
+          <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-3xl border border-sky-100 shadow-xs space-y-6">
+            <h3 className="font-bold text-slate-900 text-lg">Contact Information</h3>
+            
+            <div className="space-y-4 text-xs text-slate-600">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-500 flex items-center justify-center shrink-0">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-slate-800 block">Registered Studio & Hub:</span>
+                  <span className="mt-0.5 block">{businessConfig.address}</span>
+                </div>
+              </div>
 
-          {submitted ? (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center space-y-3">
-              <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
-              <h3 className="font-serif font-bold text-lg text-emerald-900">Inquiry Sent Successfully!</h3>
-              <p className="text-xs text-emerald-800">Our custom print expert will respond to your email within 2 hours.</p>
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-500 flex items-center justify-center shrink-0">
+                  <Phone className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-slate-800 block">Customer Care Hotline:</span>
+                  <span className="mt-0.5 block">{businessConfig.supportPhone}</span>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-500 flex items-center justify-center shrink-0">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-slate-800 block">Support Email:</span>
+                  <span className="mt-0.5 block">{businessConfig.email}</span>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-500 flex items-center justify-center shrink-0">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-slate-800 block">Operating Hours:</span>
+                  <span className="mt-0.5 block">{businessConfig.workingHours}</span>
+                </div>
+              </div>
             </div>
-          ) : (
+
+            <div className="pt-4 border-t border-sky-100">
+              <a
+                href={`https://wa.me/${businessConfig.whatsappNumber}`}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl text-xs transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" />
+                Chat on WhatsApp (+91 98765 43210)
+              </a>
+            </div>
+          </div>
+
+          {/* Contact Form */}
+          <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-sky-100 shadow-xs">
+            <h3 className="font-bold text-slate-900 text-lg mb-4">Send Us a Direct Message</h3>
+
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="block font-bold text-gray-700">Your Name *</label>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Your Name *</label>
                   <input
                     type="text"
-                    placeholder="Enter your name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full bg-gray-50 border border-gray-300 rounded-xl p-3 text-xs focus:ring-2 focus:ring-giftoria-wine-800"
+                    required
+                    placeholder="e.g. Priya Nair"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="block font-bold text-gray-700">Email Address *</label>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Email Address *</label>
                   <input
                     type="email"
-                    placeholder="you@example.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full bg-gray-50 border border-gray-300 rounded-xl p-3 text-xs focus:ring-2 focus:ring-giftoria-wine-800"
+                    required
+                    placeholder="priya@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="block font-bold text-gray-700">Phone / WhatsApp</label>
-                  <input
-                    type="tel"
-                    placeholder="9876543210"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full bg-gray-50 border border-gray-300 rounded-xl p-3 text-xs focus:ring-2 focus:ring-giftoria-wine-800"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block font-bold text-gray-700">Service Category</label>
-                  <select
-                    value={formData.service}
-                    onChange={(e) => setFormData({ ...formData, service: e.target.value })}
-                    className="w-full bg-gray-50 border border-gray-300 rounded-xl p-3 text-xs focus:ring-2 focus:ring-giftoria-wine-800"
-                  >
-                    <option value="customized-gifts">Customized Gifts</option>
-                    <option value="3d-printing">3D Printing</option>
-                    <option value="dtf-printing">DTF Printing</option>
-                    <option value="sublimation-printing">Sublimation Printing</option>
-                    <option value="photo-frames">Photo Frames</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="block font-bold text-gray-700">Customization Requirements / Message *</label>
-                <textarea
-                  rows={4}
-                  placeholder="Describe your design idea, required quantity, size, or special instructions..."
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-xl p-3 text-xs focus:ring-2 focus:ring-giftoria-wine-800"
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Subject</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Custom Birthday Cake or Bulk Corporate Gift Enquiry"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500"
                 />
               </div>
 
-              {/* Attachment with 1 MB validation */}
-              <div className="space-y-1">
-                <label className="block font-bold text-gray-700">Attach Reference Design (Optional, Max 1 MB)</label>
-                {attachment ? (
-                  <div className="flex items-center justify-between bg-emerald-50 border border-emerald-300 p-3 rounded-xl text-xs text-emerald-900">
-                    <span>{attachment.name} ({attachment.size})</span>
-                    <button type="button" onClick={() => setAttachment(null)} className="text-rose-600">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <label className="flex items-center justify-center gap-2 bg-gray-50 border border-dashed border-gray-300 hover:border-giftoria-wine-800 p-4 rounded-xl cursor-pointer text-gray-600">
-                    <Upload className="w-4 h-4 text-giftoria-wine-800" />
-                    <span>Upload image/file (Max 1 MB)</span>
-                    <input type="file" onChange={handleFileUpload} className="hidden" />
-                  </label>
-                )}
-                {uploadError && <p className="text-rose-600 text-[11px]">{uploadError}</p>}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Message *</label>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="How can we help make your celebration special?"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500 resize-none"
+                />
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-giftoria-wine-800 hover:bg-giftoria-wine-900 text-white font-bold text-xs py-3.5 px-6 rounded-2xl shadow-wine transition-all"
+                className="bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-6 rounded-xl text-xs transition-colors shadow-md shadow-sky-200 flex items-center gap-1.5"
               >
-                Submit Inquiry
+                <Send className="w-3.5 h-3.5" />
+                Submit Enquiry
               </button>
             </form>
-          )}
+          </div>
+
         </div>
 
       </div>

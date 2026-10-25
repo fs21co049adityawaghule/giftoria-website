@@ -1,167 +1,119 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'wouter';
 import { 
   Sparkles, 
   ArrowRight, 
-  Gift, 
-  Box, 
-  Shirt, 
-  Printer, 
-  Image as ImageIcon, 
-  Heart, 
+  Clock, 
   ShieldCheck, 
   Truck, 
-  Zap, 
-  Star, 
-  CheckCircle2, 
-  MessageCircle,
-  ChevronRight
+  Gift, 
+  Heart, 
+  CheckCircle, 
+  Star,
+  Award,
+  Zap,
+  ChevronRight,
+  Flame,
+  Send
 } from 'lucide-react';
+import { INITIAL_PRODUCTS, CATEGORIES_LIST, OCCASIONS_LIST } from '../data/products';
 import { ProductCard } from '../components/common/ProductCard';
-import { useAdmin } from '../context/AdminContext';
-import { businessConfig } from '../config/businessConfig';
+import { useToast } from '../context/ToastContext';
 
 export const HomePage: React.FC = () => {
-  const { products } = useAdmin();
+  const { showToast } = useToast();
+  const [emailSub, setEmailSub] = useState('');
 
-  // Filter featured & best sellers
-  const featuredProducts = products.filter((p) => p.featured && !p.isComingSoon).slice(0, 8);
-  const bestSellers = products.filter((p) => p.bestSeller && !p.isComingSoon).slice(0, 4);
+  // Sliced lists for homepage sections
+  const bestSellers = INITIAL_PRODUCTS.filter(p => p.bestSeller).slice(0, 4);
+  const flowerItems = INITIAL_PRODUCTS.filter(p => p.category === 'Flowers').slice(0, 4);
+  const cakeItems = INITIAL_PRODUCTS.filter(p => p.category === 'Cakes' || p.category === 'Chocolates').slice(0, 4);
+  const personalizedItems = INITIAL_PRODUCTS.filter(p => p.category === 'Personalized Gifts').slice(0, 4);
+  const plantItems = INITIAL_PRODUCTS.filter(p => p.category === 'Plants').slice(0, 4);
+  const trendingItems = INITIAL_PRODUCTS.filter(p => p.trending).slice(0, 4);
 
-  const quickServices = [
-    {
-      title: 'Customized Gifts',
-      href: '/customized-gifts',
-      icon: Gift,
-      desc: 'Mugs, Insulated Bottles, Keychains, Standees, & Caps personalized with love.',
-      image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=600',
-    },
-    {
-      title: '3D Printing',
-      href: '/3d-printing',
-      icon: Box,
-      desc: 'Divine Ganesha idols, Moon Lamps, Lithophanes, & custom CAD prototypes.',
-      image: 'https://images.unsplash.com/photo-1532767153582-b1a0e5145009?auto=format&fit=crop&q=80&w=600',
-    },
-    {
-      title: 'DTF Printing',
-      href: '/dtf-printing',
-      icon: Shirt,
-      desc: 'Vibrant stretchable Direct-To-Film apparel prints for Polo & Round neck tees.',
-      image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=600',
-    },
-    {
-      title: 'Sublimation Printing',
-      href: '/sublimation-printing',
-      icon: Printer,
-      desc: 'High gloss full-bleed photographic prints on ceramic mugs, keychains & sippers.',
-      image: 'https://images.unsplash.com/photo-1577937927133-66ef06acdf18?auto=format&fit=crop&q=80&w=600',
-    },
-    {
-      title: 'Photo Frames',
-      href: '/photo-frames',
-      icon: ImageIcon,
-      desc: 'Customized 4x4, 4x6 & A4 wall & desk memory frames with crystal glass.',
-      image: 'https://images.unsplash.com/photo-1534349762230-e0cadf78f5da?auto=format&fit=crop&q=80&w=600',
-    },
-  ];
-
-  const howItWorksSteps = [
-    { step: '01', title: 'Choose Your Product', desc: 'Select from our wide range of gift items, 3D models, photo frames, or custom apparel.' },
-    { step: '02', title: 'Add Your Message', desc: 'Type names, special dates, quotes, or personalized instructions.' },
-    { step: '03', title: 'Upload Design / Photo', desc: 'Upload your favorite high-resolution photo or design artwork (up to 1 MB).' },
-    { step: '04', title: 'We Create Your Gift', desc: 'Our craft experts print, 3D manufacture, and deliver with emotional perfection.' },
-  ];
-
-  const whyChooseUs = [
-    { title: 'Personalized Products', desc: 'Every piece is crafted uniquely to reflect your personal memories.' },
-    { title: 'Advanced 3D Printing', desc: 'Precision PLA & PETG 3D printing using NASA lunar elevation data & fine layers.' },
-    { title: 'High-Density DTF', desc: 'Apparel transfers that remain soft, stretchable, and washable.' },
-    { title: 'Strict 1 MB Validation', desc: 'Clean, instant file preview & seamless customization workflow.' },
-  ];
+  const handleSubscribe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (emailSub.trim() && emailSub.includes('@')) {
+      showToast('Thank you for subscribing! A 15% welcome voucher has been sent to your inbox.', 'success');
+      setEmailSub('');
+    } else {
+      showToast('Please enter a valid email address.', 'error');
+    }
+  };
 
   return (
-    <div className="space-y-16 sm:space-y-24 pb-16">
+    <div className="bg-[#F8FCFF] min-h-screen text-slate-800 pb-16">
       
-      {/* SECTION 1 — HERO BANNER */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-giftoria-cream-200 via-giftoria-bg to-white pt-8 pb-16 sm:pt-12 sm:pb-24 border-b border-giftoria-wine-800/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      {/* 1. Promotional Hero Banner */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-sky-100 via-sky-50 to-white py-12 md:py-20 border-b border-sky-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             
-            {/* Left Hero Content */}
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-giftoria-wine-800/10 text-giftoria-wine-800 text-xs font-extrabold uppercase tracking-wider">
-                <Sparkles className="w-4 h-4 text-giftoria-gold-600" />
-                <span>Customized Gifts Made With Emotions</span>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-sky-100 border border-sky-200 text-sky-700 text-xs font-semibold shadow-xs">
+                <Sparkles className="w-3.5 h-3.5 text-sky-600 animate-pulse" />
+                <span>India's Most Trusted Gifting Experience</span>
               </div>
 
-              <h1 className="font-serif font-bold text-3xl sm:text-5xl lg:text-6xl text-giftoria-wine-900 leading-tight tracking-tight">
-                Gifts Made Personal. <br />
-                <span className="italic text-giftoria-gold-600 font-normal">Memories Made Forever.</span>
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-tight">
+                Celebrate Every Emotion With <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-sky-400">SkyGift</span>
               </h1>
 
-              <p className="text-sm sm:text-base text-giftoria-charcoal-700 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                Customize gifts, 3D printed idols & moon lamps, DTF apparel, and memory photo frames specially crafted for your loved ones.
+              <p className="text-slate-600 text-base sm:text-lg max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                Handcrafted fresh bouquets, gourmet artisan cakes, personalized keepsakes, and lavish gift hampers. Delivered with care in under 2 hours.
               </p>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
+              {/* Delivery highlight pills */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-xs font-medium text-slate-700 pt-1">
+                <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-sky-100 shadow-xs">
+                  <Clock className="w-4 h-4 text-sky-500" />
+                  <span>2-Hour Express Delivery</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-sky-100 shadow-xs">
+                  <Truck className="w-4 h-4 text-sky-500" />
+                  <span>Midnight Delivery Slots</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-sky-100 shadow-xs">
+                  <ShieldCheck className="w-4 h-4 text-sky-500" />
+                  <span>100% Freshness Assured</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-3">
                 <Link
                   href="/products"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-giftoria-wine-800 hover:bg-giftoria-wine-900 text-white font-bold text-sm py-4 px-8 rounded-2xl shadow-wine transition-all hover:scale-105"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-bold px-8 py-3.5 rounded-2xl shadow-lg shadow-sky-200 hover:shadow-sky-300 transition-all active:scale-95 text-base"
                 >
                   <Gift className="w-5 h-5" />
-                  <span>Shop Gifts</span>
+                  Shop Now
+                </Link>
+                <Link
+                  href="/products?category=Birthday+Gifts"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 font-bold px-7 py-3.5 rounded-2xl shadow-xs transition-all text-base"
+                >
+                  Birthday Specials
                   <ArrowRight className="w-4 h-4" />
                 </Link>
-
-                <Link
-                  href="/services"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-giftoria-cream-100 text-giftoria-wine-800 font-bold text-sm py-4 px-8 rounded-2xl border-2 border-giftoria-wine-800/20 shadow-sm transition-all"
-                >
-                  <span>Explore Customization</span>
-                </Link>
-              </div>
-
-              {/* Trust Micro Metrics */}
-              <div className="pt-6 border-t border-giftoria-wine-800/10 grid grid-cols-3 gap-4 text-center lg:text-left">
-                <div>
-                  <div className="font-serif font-bold text-xl sm:text-2xl text-giftoria-wine-900">100%</div>
-                  <div className="text-[11px] text-gray-500 font-medium">Personalized Quality</div>
-                </div>
-                <div>
-                  <div className="font-serif font-bold text-xl sm:text-2xl text-giftoria-wine-900">5 Services</div>
-                  <div className="text-[11px] text-gray-500 font-medium">Gifts, 3D, DTF, Sublimation, Frames</div>
-                </div>
-                <div>
-                  <div className="font-serif font-bold text-xl sm:text-2xl text-giftoria-wine-900">4.9 ★</div>
-                  <div className="text-[11px] text-gray-500 font-medium">Customer Love</div>
-                </div>
               </div>
             </div>
 
-            {/* Right Hero Image Showcase Collage */}
+            {/* Right Hero Visual Cards */}
             <div className="lg:col-span-5 relative">
-              <div className="relative mx-auto max-w-md">
-                <div className="aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-giftoria-cream-300 transform -rotate-1 hover:rotate-0 transition-transform duration-500">
+              <div className="relative mx-auto max-w-md lg:max-w-none">
+                <div className="absolute -inset-4 bg-gradient-to-r from-sky-400 to-sky-200 rounded-3xl opacity-30 blur-2xl"></div>
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-white">
                   <img
-                    src="https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&q=80&w=800"
-                    alt="GIFTORIA Customized Moon Lamp"
-                    className="w-full h-full object-cover"
+                    src="https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&q=80&w=800"
+                    alt="Celebration Gifts"
+                    className="w-full h-80 sm:h-96 object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-giftoria-wine-950/80 via-transparent to-transparent flex flex-col justify-end p-6 text-white">
-                    <span className="text-xs font-bold uppercase tracking-widest text-giftoria-gold-400">Featured Creation</span>
-                    <h3 className="font-serif text-xl font-bold">Custom Photo Lithophane Moon Lamp</h3>
-                  </div>
-                </div>
-
-                {/* Floating Badge Card */}
-                <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-xl border border-giftoria-wine-800/10 flex items-center gap-3 hidden sm:flex">
-                  <div className="p-2.5 rounded-xl bg-giftoria-gold-500 text-giftoria-charcoal-900">
-                    <Sparkles className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-xs text-giftoria-charcoal-900">Upload Design (Max 1 MB)</div>
-                    <div className="text-[10px] text-gray-500">Instant File Validation</div>
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-900/80 via-slate-900/40 to-transparent p-6 text-white">
+                    <span className="bg-sky-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                      Today's Spotlight
+                    </span>
+                    <h3 className="text-xl font-bold mt-1">Roses & Dutch Chocolate Combos</h3>
+                    <p className="text-xs text-sky-200 mt-1">Order before 5:00 PM for guaranteed same-day delivery</p>
                   </div>
                 </div>
               </div>
@@ -171,188 +123,363 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* QUICK SERVICE CATEGORY CARDS SECTION */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-2xl mx-auto mb-10">
-          <h2 className="font-serif font-bold text-2xl sm:text-4xl text-giftoria-wine-900">
-            Our 5 Customization Services
-          </h2>
-          <p className="text-xs sm:text-sm text-gray-600 mt-2">
-            Explore our specialized categories designed for every gift requirement
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
-          {quickServices.map((srv) => {
-            const Icon = srv.icon;
-            return (
-              <div
-                key={srv.href}
-                className="group bg-white rounded-2xl border border-giftoria-wine-800/10 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
-              >
-                <div className="relative aspect-video sm:aspect-[4/3] bg-gray-100 overflow-hidden">
-                  <img
-                    src={srv.image}
-                    alt={srv.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute top-2.5 left-2.5 p-2 rounded-xl bg-white/90 text-giftoria-wine-800 backdrop-blur-md shadow-sm">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                </div>
-
-                <div className="p-4 flex flex-col justify-between flex-1">
-                  <div>
-                    <h3 className="font-serif font-bold text-sm text-giftoria-wine-900 group-hover:text-giftoria-wine-700 transition-colors">
-                      {srv.title}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                      {srv.desc}
-                    </p>
-                  </div>
-
-                  <Link
-                    href={srv.href}
-                    className="mt-4 inline-flex items-center justify-between text-xs font-bold text-giftoria-wine-800 hover:text-giftoria-wine-900 group/btn"
-                  >
-                    <span>Explore Service</span>
-                    <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-                  </Link>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* FEATURED GIFTS PRODUCT GRID */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+      {/* 2. Shop by Category Grid */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8">
           <div>
-            <h2 className="font-serif font-bold text-2xl sm:text-3xl text-giftoria-wine-900">
-              Featured Gifts & Creations
+            <span className="text-xs font-bold uppercase tracking-wider text-sky-600">Curated Collections</span>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
+              Shop by Category
             </h2>
-            <p className="text-xs text-gray-500 mt-1">
-              Handpicked personalized products loved by our customers
-            </p>
           </div>
-          <Link
-            href="/products"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-giftoria-wine-800 hover:text-giftoria-wine-900 bg-giftoria-wine-50 px-4 py-2 rounded-xl transition-colors"
-          >
-            <span>View All Products ({products.length})</span>
-            <ArrowRight className="w-4 h-4" />
+          <Link href="/products" className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1 mt-2 md:mt-0">
+            View All Categories <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-          {featuredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+          {CATEGORIES_LIST.map((category) => (
+            <Link
+              key={category.id}
+              href={`/products?category=${encodeURIComponent(category.name)}`}
+              className="group bg-white rounded-2xl p-3 border border-sky-100 hover:border-sky-300 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col items-center text-center"
+            >
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden mb-3 bg-sky-50">
+                <img
+                  src={category.image}
+                  alt={category.name}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  loading="lazy"
+                />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800 group-hover:text-sky-600 transition-colors">
+                {category.name}
+              </h3>
+              <span className="text-[11px] text-sky-600 mt-0.5">
+                {category.count}
+              </span>
+            </Link>
           ))}
         </div>
       </section>
 
-      {/* HOW IT WORKS SECTION (4 STEPS) */}
-      <section className="bg-giftoria-wine-900 text-white py-16 sm:py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs font-bold uppercase tracking-widest text-giftoria-gold-400">Simple 4-Step Process</span>
-            <h2 className="font-serif font-bold text-2xl sm:text-4xl text-white mt-1">
-              How Customization Works
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-300 mt-2">
-              From your idea to your doorstep in four easy steps
-            </p>
+      {/* 3. Popular Gifts / Best Sellers */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-amber-100 text-amber-700 rounded-xl">
+              <Flame className="w-5 h-5 fill-amber-500" />
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                Popular Gifts & Best Sellers
+              </h2>
+              <p className="text-xs text-slate-500">Most loved choices ordered by our customers</p>
+            </div>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {howItWorksSteps.map((st) => (
-              <div
-                key={st.step}
-                className="bg-giftoria-charcoal-900/60 border border-giftoria-wine-800/40 rounded-2xl p-6 relative flex flex-col justify-between"
-              >
-                <div>
-                  <div className="font-serif text-3xl font-extrabold text-giftoria-gold-400 mb-3">
-                    {st.step}
-                  </div>
-                  <h3 className="font-serif font-bold text-lg text-white mb-2">
-                    {st.title}
-                  </h3>
-                  <p className="text-xs text-gray-300 leading-relaxed">
-                    {st.desc}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* BEST SELLERS SECTION */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-2xl mx-auto mb-10">
-          <span className="text-xs font-bold uppercase tracking-widest text-giftoria-wine-800">Top Trending</span>
-          <h2 className="font-serif font-bold text-2xl sm:text-3xl text-giftoria-wine-900 mt-1">
-            Best Sellers & Customer Favorites
-          </h2>
+          <Link href="/products?filter=bestsellers" className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1">
+            Explore All <ChevronRight className="w-4 h-4" />
+          </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {bestSellers.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
       </section>
 
-      {/* WHY CHOOSE GIFTORIA */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bg-giftoria-cream-100 rounded-3xl p-8 sm:p-12 border border-giftoria-wine-800/10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-5 space-y-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-giftoria-wine-800">Why GIFTORIA</span>
-            <h2 className="font-serif font-bold text-2xl sm:text-4xl text-giftoria-wine-900">
-              Crafted With Emotion. Engineered With Precision.
+      {/* 4. Birthday Gifts Promotional Banner */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="rounded-3xl bg-gradient-to-r from-sky-600 via-sky-500 to-sky-700 p-8 md:p-12 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-3 z-10 max-w-xl text-center md:text-left">
+            <span className="inline-block bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider backdrop-blur-xs">
+              Make Birthdays Unforgettable
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-black">
+              Midnight Birthday Surprises & Combos
             </h2>
-            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-              Whether it’s a laser-engraved steel bottle, a lithophane moon lamp, or a custom DTF t-shirt, we treat every single order as a unique memory.
+            <p className="text-sky-100 text-sm leading-relaxed">
+              Order fresh baked artisan cakes, personalized photo frames, and rose bouquets delivered right at 12:00 AM midnight.
             </p>
+            <div className="pt-2">
+              <Link
+                href="/products?category=Birthday+Gifts"
+                className="inline-flex items-center gap-2 bg-white text-sky-700 hover:bg-sky-50 px-6 py-3 rounded-xl font-bold text-sm shadow-md transition-all active:scale-95"
+              >
+                Explore Birthday Gifts <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
 
-          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {whyChooseUs.map((item, idx) => (
-              <div key={idx} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-2">
-                <div className="flex items-center gap-2 text-giftoria-wine-800">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-giftoria-gold-600" />
-                  <h3 className="font-bold text-sm text-giftoria-wine-900">{item.title}</h3>
-                </div>
-                <p className="text-xs text-gray-500 leading-relaxed pl-7">
-                  {item.desc}
-                </p>
-              </div>
-            ))}
+          <div className="z-10 shrink-0">
+            <img
+              src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&q=80&w=500"
+              alt="Birthday Cake"
+              className="w-44 h-44 sm:w-56 sm:h-56 rounded-2xl object-cover shadow-2xl border-4 border-white/30"
+            />
           </div>
         </div>
       </section>
 
-      {/* FINAL CTA BANNER */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-r from-giftoria-wine-900 via-giftoria-wine-800 to-giftoria-charcoal-900 text-white rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden shadow-xl">
-          <div className="relative z-10 max-w-2xl mx-auto space-y-4">
-            <h2 className="font-serif font-bold text-3xl sm:text-5xl text-white">
-              Make It Personal. Make It GIFTORIA.
+      {/* 5. Flowers and Bouquets Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-sky-600">Farm-Fresh Blooms</span>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+              Flowers & Bouquets
             </h2>
-            <p className="text-xs sm:text-base text-gray-200">
-              Turn your ideas, memories and messages into something unforgettable.
-            </p>
-            <div className="pt-4">
+          </div>
+          <Link href="/products?category=Flowers" className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1">
+            See All Flowers <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {flowerItems.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      </section>
+
+      {/* 6. Cakes and Chocolates Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-sky-600">Freshly Baked & Confectionery</span>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+              Cakes & Chocolates
+            </h2>
+          </div>
+          <Link href="/products?category=Cakes" className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1">
+            See All Cakes <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {cakeItems.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      </section>
+
+      {/* 7. Personalized Gifts Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-sky-600">Customized With Love</span>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+              Personalized Keepsakes
+            </h2>
+          </div>
+          <Link href="/products?category=Personalized+Gifts" className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1">
+            See All Personalized <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {personalizedItems.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      </section>
+
+      {/* 8. Plants and Green Gifts Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-sky-600">Living Eco Gifts</span>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+              Plants & Green Gifts
+            </h2>
+          </div>
+          <Link href="/products?category=Plants" className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1">
+            See All Plants <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {plantItems.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      </section>
+
+      {/* 9. Gifts for Every Occasion */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center max-w-xl mx-auto mb-8">
+          <span className="text-xs font-bold uppercase tracking-wider text-sky-600">Celebrate Life's Milestones</span>
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
+            Gifts For Every Occasion
+          </h2>
+          <p className="text-xs text-slate-500 mt-1">Find the perfect gift curated specifically for your celebratory moment</p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {OCCASIONS_LIST.map((occasion) => (
+            <Link
+              key={occasion}
+              href={`/products?occasion=${encodeURIComponent(occasion)}`}
+              className="bg-white hover:bg-sky-50 border border-sky-100 hover:border-sky-300 rounded-2xl p-4 text-center transition-all shadow-xs hover:shadow-md flex flex-col items-center justify-center group"
+            >
+              <div className="w-10 h-10 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                <Gift className="w-5 h-5" />
+              </div>
+              <span className="font-bold text-sm text-slate-800 group-hover:text-sky-600">{occasion}</span>
+              <span className="text-[11px] text-slate-600 mt-0.5">Explore Gifts →</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* 10. Same-Day & Express Delivery Promotional Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-sky-50 rounded-3xl border border-sky-200 p-8 sm:p-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+            
+            <div className="space-y-2 md:col-span-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-200/60 text-sky-800 text-xs font-bold">
+                <Zap className="w-3.5 h-3.5 text-sky-600" />
+                <span>Express Courier & Direct Fleet</span>
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-900">
+                Need Gifts in a Hurry? We Got You Covered!
+              </h3>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                With SkyGift's dedicated delivery hubs across India, enjoy <strong>2-Hour Express Delivery</strong>, fixed-time slots, and surprise <strong>Midnight Delivery</strong> right when the clock strikes 12.
+              </p>
+              <div className="pt-2 flex flex-wrap gap-3">
+                <span className="text-xs bg-white text-slate-700 px-3 py-1.5 rounded-lg border border-sky-200 font-semibold">
+                  ⚡ 2-Hour Delivery
+                </span>
+                <span className="text-xs bg-white text-slate-700 px-3 py-1.5 rounded-lg border border-sky-200 font-semibold">
+                  🌙 12:00 AM Midnight Delivery
+                </span>
+                <span className="text-xs bg-white text-slate-700 px-3 py-1.5 rounded-lg border border-sky-200 font-semibold">
+                  📍 450+ Cities in India
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-center md:justify-end">
               <Link
-                href="/products"
-                className="inline-flex items-center gap-2 bg-giftoria-gold-500 hover:bg-giftoria-gold-600 text-giftoria-charcoal-900 font-extrabold text-sm py-4 px-8 rounded-2xl shadow-lg transition-all hover:scale-105"
+                href="/products?filter=express"
+                className="bg-sky-500 hover:bg-sky-600 text-white font-bold px-6 py-3.5 rounded-2xl shadow-lg shadow-sky-200 transition-all flex items-center gap-2"
               >
-                <Sparkles className="w-4 h-4" />
-                <span>Start Customizing Now</span>
+                Browse Express Gifts <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
+
           </div>
+        </div>
+      </section>
+
+      {/* 11. Trending Gifts Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-sky-600">What's Hot</span>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+              Trending Gifts This Week
+            </h2>
+          </div>
+          <Link href="/products?filter=trending" className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1">
+            See All Trending <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {trendingItems.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      </section>
+
+      {/* 12. Why Shop With Us Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="text-center max-w-xl mx-auto mb-10">
+          <span className="text-xs font-bold uppercase tracking-wider text-sky-600">The SkyGift Promise</span>
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
+            Why Choose SkyGift?
+          </h2>
+          <p className="text-xs text-slate-500 mt-1">Crafting moments of pure joy with exceptional quality and punctuality</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-white p-6 rounded-2xl border border-sky-100 shadow-xs hover:border-sky-300 transition-all text-center">
+            <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 mx-auto flex items-center justify-center mb-4">
+              <Award className="w-6 h-6" />
+            </div>
+            <h4 className="font-bold text-slate-900 text-base mb-1">Premium Quality</h4>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Every flower petal, cake layer, and keepsake undergoes 5-point quality inspection before dispatch.
+            </p>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-sky-100 shadow-xs hover:border-sky-300 transition-all text-center">
+            <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 mx-auto flex items-center justify-center mb-4">
+              <Clock className="w-6 h-6" />
+            </div>
+            <h4 className="font-bold text-slate-900 text-base mb-1">On-Time Guarantee</h4>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Punctual delivery for your planned surprise slots including morning, evening, and midnight.
+            </p>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-sky-100 shadow-xs hover:border-sky-300 transition-all text-center">
+            <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 mx-auto flex items-center justify-center mb-4">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <h4 className="font-bold text-slate-900 text-base mb-1">Secure Checkout</h4>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              256-bit SSL encrypted checkout ensuring 100% private and protected shopping.
+            </p>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-sky-100 shadow-xs hover:border-sky-300 transition-all text-center">
+            <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 mx-auto flex items-center justify-center mb-4">
+              <Heart className="w-6 h-6" />
+            </div>
+            <h4 className="font-bold text-slate-900 text-base mb-1">Dedicated Support</h4>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Real human assistance reachable on WhatsApp and phone for seamless gifting queries.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 13. Newsletter Subscription Section */}
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-gradient-to-r from-sky-500 to-sky-600 rounded-3xl p-8 sm:p-10 text-white shadow-xl text-center space-y-4">
+          <div className="w-12 h-12 rounded-full bg-white/20 text-white flex items-center justify-center mx-auto">
+            <Send className="w-5 h-5" />
+          </div>
+          <h3 className="text-2xl sm:text-3xl font-black">
+            Never Miss a Special Celebration!
+          </h3>
+          <p className="text-sky-100 text-sm max-w-md mx-auto">
+            Subscribe to get occasion reminders, exclusive VIP discounts, and festive gifting inspirations.
+          </p>
+
+          <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto pt-2">
+            <input
+              type="email"
+              placeholder="Enter your email address"
+              value={emailSub}
+              onChange={(e) => setEmailSub(e.target.value)}
+              className="bg-white text-slate-800 px-4 py-3 rounded-xl text-sm focus:outline-none flex-1 placeholder-slate-400 font-medium"
+            />
+            <button
+              type="submit"
+              className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 py-3 rounded-xl text-sm transition-colors shadow-md"
+            >
+              Get 15% Off
+            </button>
+          </form>
+          <span className="block text-[11px] text-sky-200">
+            No spam guaranteed. Unsubscribe anytime with a single click.
+          </span>
         </div>
       </section>
 

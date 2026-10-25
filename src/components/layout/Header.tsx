@@ -1,367 +1,389 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { 
-  ShoppingBag, 
-  Heart, 
   Search, 
+  MapPin, 
+  Heart, 
+  ShoppingBag, 
   User, 
   Menu, 
   X, 
+  Gift, 
   ChevronDown, 
+  Clock, 
   Sparkles,
-  Gift,
-  Printer,
-  Shirt,
-  Image as ImageIcon,
-  Box,
-  Layers,
-  PhoneCall,
-  SlidersHorizontal
+  Phone
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { CATEGORIES_LIST } from '../../data/products';
 import { businessConfig } from '../../config/businessConfig';
 
 export const Header: React.FC = () => {
-  const [location, navigate] = useLocation();
+  const [location, setLocation] = useLocation();
   const { cartCount } = useCart();
   const { wishlistCount } = useWishlist();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false);
+  const [selectedPincode, setSelectedPincode] = useState('400001 (Mumbai)');
+  const [isPincodeModalOpen, setIsPincodeModalOpen] = useState(false);
+  const [tempPincode, setTempPincode] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setLocation(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
       setMobileMenuOpen(false);
     }
   };
 
-  const navLinks = [
-    { name: 'Home', href: '/' },
-    { name: 'Shop', href: '/products' },
-    { name: 'Services', href: '/services' },
-    { name: 'About Us', href: '/about' },
-    { name: 'Contact', href: '/contact' },
-  ];
-
-  const categoryServices = [
-    { name: 'Customized Gifts', href: '/customized-gifts', icon: Gift, desc: 'Mugs, Bottles, Standees, Caps' },
-    { name: '3D Printing', href: '/3d-printing', icon: Box, desc: 'Idols, Moon Lamps, Prototypes' },
-    { name: 'DTF Printing', href: '/dtf-printing', icon: Shirt, desc: 'T-Shirts, Polo, Carry Bags' },
-    { name: 'Sublimation Printing', href: '/sublimation-printing', icon: Printer, desc: 'High gloss Mugs, Keychains, Sippers' },
-    { name: 'Photo Frames', href: '/photo-frames', icon: ImageIcon, desc: '4x4, 4x6 & A4 Wall & Desk Frames' },
-  ];
+  const handlePincodeSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (tempPincode.trim().length === 6 && /^\d+$/.test(tempPincode)) {
+      setSelectedPincode(`${tempPincode} (Verified)`);
+      setIsPincodeModalOpen(false);
+    } else {
+      setSelectedPincode(tempPincode.trim() || '400001 (Mumbai)');
+      setIsPincodeModalOpen(false);
+    }
+  };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-giftoria-wine-800/10 shadow-sm transition-all">
-      {/* Top Announcement Bar */}
-      <div className="bg-giftoria-wine-800 text-white text-xs py-2 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2">
-        <Sparkles className="w-3.5 h-3.5 text-giftoria-gold-400 animate-pulse" />
-        <span>Customized Gifts Made With Emotions — Free Shipping Across India on Orders Above ₹{businessConfig.freeShippingThreshold}</span>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-20 gap-4">
-          
-          {/* Logo & Brand Identity */}
-          <Link href="/" className="flex items-center gap-2.5 group shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-giftoria-wine-800 to-giftoria-wine-900 flex items-center justify-center text-giftoria-gold-400 shadow-md group-hover:scale-105 transition-transform">
-              <Gift className="w-5 h-5" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-giftoria-wine-800 group-hover:text-giftoria-wine-700 transition-colors">
-                GIFTORIA
+    <>
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-sky-100 shadow-sm">
+        {/* A. Top Announcement Bar */}
+        <div className="bg-gradient-to-r from-sky-600 via-sky-500 to-sky-600 text-white text-xs py-1.5 px-4 font-medium">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="bg-white/20 px-2 py-0.5 rounded text-[11px] font-bold tracking-wide">
+                SPECIAL OFFER
               </span>
-              <span className="text-[9px] font-semibold tracking-wider text-giftoria-gold-600 uppercase -mt-1 hidden sm:block">
-                Made With Emotions
-              </span>
+              <span className="hidden sm:inline">Make Every Moment Special — </span>
+              <span>Free Delivery on orders above ₹799</span>
             </div>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-7 text-sm font-medium">
-            <Link 
-              href="/" 
-              className={`transition-colors hover:text-giftoria-wine-800 ${location === '/' ? 'text-giftoria-wine-800 font-bold border-b-2 border-giftoria-wine-800 pb-1' : 'text-giftoria-charcoal-700'}`}
-            >
-              Home
-            </Link>
-
-            {/* Category Dropdown */}
-            <div 
-              className="relative group"
-              onMouseEnter={() => setCategoriesDropdownOpen(true)}
-              onMouseLeave={() => setCategoriesDropdownOpen(false)}
-            >
-              <button 
-                className="flex items-center gap-1 py-2 text-giftoria-charcoal-700 hover:text-giftoria-wine-800 transition-colors"
-                aria-expanded={categoriesDropdownOpen}
+            
+            <div className="flex items-center gap-4 text-sky-100 text-[11px]">
+              <span className="flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-sky-200" />
+                Same Day & Midnight Delivery
+              </span>
+              <a 
+                href={`tel:${businessConfig.supportPhone}`} 
+                className="hidden md:flex items-center gap-1 hover:text-white transition-colors"
               >
-                <span>Categories</span>
-                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${categoriesDropdownOpen ? 'rotate-180 text-giftoria-wine-800' : ''}`} />
-              </button>
-
-              {categoriesDropdownOpen && (
-                <div className="absolute top-full left-0 w-72 bg-white rounded-2xl shadow-xl border border-giftoria-wine-800/10 py-3 px-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="text-[10px] font-bold tracking-wider text-giftoria-wine-800 uppercase px-3 pb-2 border-b border-gray-100">
-                    Our 5 Core Services
-                  </div>
-                  <div className="mt-1 space-y-0.5">
-                    {categoryServices.map((cat) => {
-                      const IconComponent = cat.icon;
-                      return (
-                        <Link
-                          key={cat.href}
-                          href={cat.href}
-                          onClick={() => setCategoriesDropdownOpen(false)}
-                          className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-giftoria-wine-50 transition-colors text-giftoria-charcoal-900 group/item"
-                        >
-                          <div className="p-2 rounded-lg bg-giftoria-wine-50 text-giftoria-wine-800 group-hover/item:bg-giftoria-wine-800 group-hover/item:text-white transition-colors shrink-0">
-                            <IconComponent className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-xs text-giftoria-wine-900 group-hover/item:text-giftoria-wine-800">
-                              {cat.name}
-                            </div>
-                            <div className="text-[11px] text-gray-500 line-clamp-1">
-                              {cat.desc}
-                            </div>
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                <Phone className="w-3.5 h-3.5" />
+                {businessConfig.supportPhoneDisplay}
+              </a>
             </div>
+          </div>
+        </div>
 
-            <Link 
-              href="/products" 
-              className={`transition-colors hover:text-giftoria-wine-800 ${location === '/products' ? 'text-giftoria-wine-800 font-bold border-b-2 border-giftoria-wine-800 pb-1' : 'text-giftoria-charcoal-700'}`}
+        {/* B. Main Header */}
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3 md:gap-6">
+          {/* Mobile menu toggle & Logo */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-1.5 rounded-lg text-slate-700 hover:bg-sky-50 lg:hidden"
+              aria-label="Toggle Navigation Menu"
             >
-              Shop All
-            </Link>
+              {mobileMenuOpen ? <X className="w-6 h-6 text-sky-600" /> : <Menu className="w-6 h-6" />}
+            </button>
 
-            <Link 
-              href="/services" 
-              className={`transition-colors hover:text-giftoria-wine-800 ${location === '/services' ? 'text-giftoria-wine-800 font-bold border-b-2 border-giftoria-wine-800 pb-1' : 'text-giftoria-charcoal-700'}`}
-            >
-              Services
+            <Link href="/" className="flex items-center gap-2 group">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-sky-400 flex items-center justify-center text-white shadow-md shadow-sky-200 group-hover:scale-105 transition-transform">
+                <Gift className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xl md:text-2xl font-black tracking-tight text-slate-900 group-hover:text-sky-600 transition-colors">
+                  Sky<span className="text-sky-500">Gift</span>
+                </span>
+                <span className="text-[10px] uppercase font-bold text-sky-600 tracking-wider -mt-1 hidden sm:block">
+                  Express Gifting
+                </span>
+              </div>
             </Link>
+          </div>
 
-            <Link 
-              href="/about" 
-              className={`transition-colors hover:text-giftoria-wine-800 ${location === '/about' ? 'text-giftoria-wine-800 font-bold border-b-2 border-giftoria-wine-800 pb-1' : 'text-giftoria-charcoal-700'}`}
-            >
-              About
-            </Link>
+          {/* Location / Pincode Selector */}
+          <button
+            onClick={() => setIsPincodeModalOpen(true)}
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-100 hover:border-sky-300 bg-sky-50/60 hover:bg-sky-50 text-slate-700 text-xs font-medium transition-all group"
+            title="Change Delivery Location"
+          >
+            <MapPin className="w-4 h-4 text-sky-500 group-hover:animate-bounce" />
+            <div className="text-left">
+              <div className="text-[10px] text-slate-600 leading-none">Deliver to</div>
+              <div className="text-xs font-semibold text-slate-800 flex items-center gap-1">
+                <span className="max-w-[110px] truncate">{selectedPincode}</span>
+                <ChevronDown className="w-3 h-3 text-slate-600" />
+              </div>
+            </div>
+          </button>
 
-            <Link 
-              href="/contact" 
-              className={`transition-colors hover:text-giftoria-wine-800 ${location === '/contact' ? 'text-giftoria-wine-800 font-bold border-b-2 border-giftoria-wine-800 pb-1' : 'text-giftoria-charcoal-700'}`}
-            >
-              Contact
-            </Link>
-          </nav>
-
-          {/* Desktop Search Bar */}
-          <form onSubmit={handleSearchSubmit} className="hidden md:flex items-center flex-1 max-w-xs relative">
+          {/* Prominent Search Bar */}
+          <form 
+            onSubmit={handleSearchSubmit} 
+            className="flex-1 max-w-xl relative hidden sm:block"
+          >
             <input
               type="text"
-              placeholder="Search gifts, 3D prints, mugs..."
+              placeholder="Search flowers, cakes, personalized gifts, plants..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-giftoria-cream-100 border border-giftoria-wine-800/15 rounded-full py-2 pl-4 pr-10 text-xs focus:outline-none focus:ring-2 focus:ring-giftoria-wine-800 focus:bg-white transition-all text-giftoria-charcoal-900 placeholder:text-gray-400"
+              className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-sky-200 focus:border-sky-500 rounded-full py-2.5 pl-11 pr-24 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-100 transition-all shadow-inner"
             />
+            <Search className="w-4 h-4 text-sky-500 absolute left-4 top-1/2 -translate-y-1/2" />
             <button
               type="submit"
-              className="absolute right-3 p-1 text-gray-500 hover:text-giftoria-wine-800 transition-colors"
-              aria-label="Search button"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full transition-colors shadow-sm"
             >
-              <Search className="w-4 h-4" />
+              Search
             </button>
           </form>
 
-          {/* Right Action Icons */}
+          {/* Actions: Account, Wishlist, Cart */}
           <div className="flex items-center gap-2 sm:gap-4">
-            
-            {/* Search Toggle Icon for mobile */}
-            <Link
-              href="/search"
-              className="md:hidden p-2 rounded-full text-giftoria-charcoal-700 hover:text-giftoria-wine-800 hover:bg-giftoria-wine-50 transition-colors"
-              aria-label="Search page"
+            <Link 
+              href="/account" 
+              className="flex items-center gap-1.5 text-slate-700 hover:text-sky-600 p-2 rounded-xl hover:bg-sky-50 transition-colors"
+              title="My Account"
             >
-              <Search className="w-5 h-5" />
+              <User className="w-5 h-5" />
+              <span className="text-xs font-semibold hidden md:inline">Account</span>
             </Link>
 
-            {/* Wishlist Icon */}
-            <Link
-              href="/wishlist"
-              className="relative p-2 rounded-full text-giftoria-charcoal-700 hover:text-giftoria-wine-800 hover:bg-giftoria-wine-50 transition-colors"
-              aria-label="View Favorites"
+            <Link 
+              href="/wishlist" 
+              className="relative p-2 text-slate-700 hover:text-rose-500 rounded-xl hover:bg-sky-50 transition-colors"
+              title="My Wishlist"
             >
               <Heart className="w-5 h-5" />
               {wishlistCount > 0 && (
-                <span className="absolute top-1 right-1 bg-giftoria-wine-800 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
+                <span className="absolute 0 top-1 right-1 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                   {wishlistCount}
                 </span>
               )}
             </Link>
 
-            {/* Cart Icon */}
-            <Link
-              href="/cart"
-              className="relative p-2 rounded-full text-giftoria-charcoal-700 hover:text-giftoria-wine-800 hover:bg-giftoria-wine-50 transition-colors"
-              aria-label="View Shopping Cart"
+            <Link 
+              href="/cart" 
+              className="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white px-3.5 py-2 rounded-full font-semibold text-xs transition-transform active:scale-95 shadow-sm shadow-sky-200"
+              title="Shopping Cart"
             >
-              <ShoppingBag className="w-5 h-5" />
-              {cartCount > 0 && (
-                <span className="absolute top-1 right-1 bg-giftoria-gold-500 text-giftoria-charcoal-900 text-[10px] font-extrabold w-4.5 h-4.5 rounded-full flex items-center justify-center shadow-sm">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
-
-            {/* User Account / Orders Link */}
-            <Link
-              href="/account"
-              className="hidden sm:flex items-center p-2 rounded-full text-giftoria-charcoal-700 hover:text-giftoria-wine-800 hover:bg-giftoria-wine-50 transition-colors"
-              aria-label="User Account"
-            >
-              <User className="w-5 h-5" />
-            </Link>
-
-            {/* Mobile Hamburger Toggle */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-xl text-giftoria-charcoal-800 hover:bg-giftoria-wine-50 transition-colors"
-              aria-label="Toggle mobile menu"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
-
-        </div>
-      </div>
-
-      {/* Slide-out Mobile Navigation Drawer */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end animate-in fade-in duration-200">
-          <div className="w-full max-w-xs bg-white h-full shadow-2xl flex flex-col justify-between overflow-y-auto p-5 animate-in slide-in-from-right duration-300">
-            <div>
-              {/* Drawer Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-giftoria-wine-800 text-giftoria-gold-400 flex items-center justify-center">
-                    <Gift className="w-4 h-4" />
-                  </div>
-                  <span className="font-serif font-bold text-lg text-giftoria-wine-800">GIFTORIA</span>
-                </div>
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"
-                  aria-label="Close navigation drawer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+              <div className="relative">
+                <ShoppingBag className="w-4 h-4" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-amber-400 text-slate-900 text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
               </div>
+              <span className="hidden sm:inline">Cart</span>
+            </Link>
+          </div>
+        </div>
 
-              {/* Search input in drawer */}
-              <form onSubmit={handleSearchSubmit} className="mt-4 relative">
-                <input
-                  type="text"
-                  placeholder="Search gifts..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pl-4 pr-10 text-xs text-giftoria-charcoal-900 focus:outline-none focus:ring-2 focus:ring-giftoria-wine-800"
-                />
-                <button type="submit" className="absolute right-3 top-2.5 text-gray-400">
-                  <Search className="w-4 h-4" />
-                </button>
-              </form>
+        {/* Mobile Search Bar */}
+        <div className="px-4 pb-2.5 sm:hidden">
+          <form onSubmit={handleSearchSubmit} className="relative">
+            <input
+              type="text"
+              placeholder="Search flowers, cakes, gifts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-50 border border-sky-200 rounded-full py-2 pl-9 pr-20 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500"
+            />
+            <Search className="w-3.5 h-3.5 text-sky-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <button
+              type="submit"
+              className="absolute right-1 top-1/2 -translate-y-1/2 bg-sky-500 text-white text-[11px] font-bold px-3 py-1 rounded-full"
+            >
+              Find
+            </button>
+          </form>
+        </div>
 
-              {/* Main Links */}
-              <div className="mt-6 space-y-1">
+        {/* C. Category Navigation Bar */}
+        <div className="bg-sky-50/70 border-t border-sky-100 overflow-x-auto no-scrollbar">
+          <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 md:gap-3 py-2 whitespace-nowrap">
+            <Link 
+              href="/products" 
+              className="text-xs font-bold text-sky-700 hover:text-sky-900 px-2.5 py-1 rounded-lg hover:bg-sky-100/80 transition-colors flex items-center gap-1"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+              All Gifts
+            </Link>
+            {CATEGORIES_LIST.map((category) => (
+              <Link
+                key={category.id}
+                href={`/products?category=${encodeURIComponent(category.name)}`}
+                className="text-xs font-semibold text-slate-700 hover:text-sky-600 hover:bg-white px-2.5 py-1 rounded-lg transition-all"
+              >
+                {category.name}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile Side Drawer Navigation */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          <div 
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs" 
+            onClick={() => setMobileMenuOpen(false)} 
+          />
+          <div className="relative w-4/5 max-w-xs bg-white h-full shadow-2xl flex flex-col z-10">
+            <div className="p-4 border-b border-sky-100 flex items-center justify-between bg-sky-50">
+              <div className="flex items-center gap-2">
+                <Gift className="w-5 h-5 text-sky-600" />
+                <span className="font-bold text-slate-900">SkyGift Categories</span>
+              </div>
+              <button 
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Mobile Pincode button */}
+            <div className="p-3 border-b border-sky-100 bg-sky-50/40">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setIsPincodeModalOpen(true);
+                }}
+                className="w-full flex items-center justify-between text-xs text-slate-700 font-medium p-2 rounded-lg bg-white border border-sky-200"
+              >
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-sky-500" />
+                  <span>Deliver to: <strong>{selectedPincode}</strong></span>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 space-y-1">
+              <Link
+                href="/products"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 text-sm font-bold text-sky-600 hover:bg-sky-50 rounded-lg"
+              >
+                🎁 Explore All Products
+              </Link>
+              {CATEGORIES_LIST.map((category) => (
                 <Link
-                  href="/"
+                  key={category.id}
+                  href={`/products?category=${encodeURIComponent(category.name)}`}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2.5 rounded-xl font-medium text-sm text-giftoria-charcoal-900 hover:bg-giftoria-wine-50 hover:text-giftoria-wine-800"
+                  className="flex items-center justify-between px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-sky-50 hover:text-sky-600 rounded-lg"
                 >
-                  Home
+                  <span>{category.name}</span>
+                  <span className="text-[11px] text-sky-500 bg-sky-50 px-2 py-0.5 rounded-full">
+                    {category.count}
+                  </span>
                 </Link>
-                <Link
-                  href="/products"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2.5 rounded-xl font-medium text-sm text-giftoria-charcoal-900 hover:bg-giftoria-wine-50 hover:text-giftoria-wine-800"
-                >
-                  Shop All Products
-                </Link>
-                <Link
-                  href="/services"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2.5 rounded-xl font-medium text-sm text-giftoria-charcoal-900 hover:bg-giftoria-wine-50 hover:text-giftoria-wine-800"
-                >
-                  Services
-                </Link>
+              ))}
+
+              <div className="pt-4 border-t border-sky-100 mt-4 space-y-1">
                 <Link
                   href="/account"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2.5 rounded-xl font-medium text-sm text-giftoria-charcoal-900 hover:bg-giftoria-wine-50 hover:text-giftoria-wine-800"
+                  className="block px-3 py-2 text-sm text-slate-600 hover:bg-sky-50 rounded-lg"
                 >
-                  My Account & Orders
+                  👤 My Profile & Orders
                 </Link>
                 <Link
-                  href="/admin"
+                  href="/wishlist"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2.5 rounded-xl font-medium text-sm text-giftoria-gold-700 bg-giftoria-gold-50 hover:bg-giftoria-gold-100 flex items-center justify-between"
+                  className="block px-3 py-2 text-sm text-slate-600 hover:bg-sky-50 rounded-lg"
                 >
-                  <span>Admin Dashboard</span>
-                  <SlidersHorizontal className="w-4 h-4" />
+                  ❤️ My Wishlist ({wishlistCount})
+                </Link>
+                <Link
+                  href="/about"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-3 py-2 text-sm text-slate-600 hover:bg-sky-50 rounded-lg"
+                >
+                  ℹ️ About SkyGift
+                </Link>
+                <Link
+                  href="/contact"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-3 py-2 text-sm text-slate-600 hover:bg-sky-50 rounded-lg"
+                >
+                  📞 Customer Support
                 </Link>
               </div>
-
-              {/* Service Categories Accordion */}
-              <div className="mt-6 pt-4 border-t border-gray-100">
-                <div className="px-3 text-xs font-bold text-giftoria-wine-800 uppercase tracking-wider mb-2">
-                  Our Customized Services
-                </div>
-                <div className="space-y-1">
-                  {categoryServices.map((cat) => {
-                    const IconComponent = cat.icon;
-                    return (
-                      <Link
-                        key={cat.href}
-                        href={cat.href}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-giftoria-charcoal-800 hover:bg-giftoria-wine-50 hover:text-giftoria-wine-800"
-                      >
-                        <IconComponent className="w-4 h-4 text-giftoria-wine-800" />
-                        <span>{cat.name}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Drawer Footer Contact */}
-            <div className="pt-4 border-t border-gray-100 mt-6 text-xs text-gray-500 space-y-2">
-              <div className="font-semibold text-giftoria-wine-900">Need Customization Help?</div>
-              <a
-                href={`https://wa.me/${businessConfig.whatsappNumber}?text=${encodeURIComponent("Hello GIFTORIA, I would like to enquire about a customized product.")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-emerald-700 font-medium py-1.5 px-3 bg-emerald-50 rounded-lg"
-              >
-                <PhoneCall className="w-3.5 h-3.5" />
-                <span>WhatsApp: {businessConfig.whatsappDisplay}</span>
-              </a>
             </div>
           </div>
         </div>
       )}
-    </header>
+
+      {/* Pincode Selector Modal */}
+      {isPincodeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-sky-100">
+            <div className="flex items-center justify-between pb-3 border-b border-sky-100">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-sky-500" />
+                <h3 className="font-bold text-slate-900 text-base">Select Delivery Location</h3>
+              </div>
+              <button 
+                onClick={() => setIsPincodeModalOpen(false)}
+                className="text-slate-600 hover:text-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 mt-3">
+              Enter your 6-digit Indian PIN code to check express delivery availability, midnight slots, and accurate courier timelines.
+            </p>
+
+            <form onSubmit={handlePincodeSave} className="mt-4 space-y-3">
+              <div>
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="e.g. 400001, 110001, 560001"
+                  value={tempPincode}
+                  onChange={(e) => setTempPincode(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-4 py-2.5 border border-sky-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm font-semibold tracking-wider text-slate-800"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPincode('400001 (Mumbai)');
+                    setIsPincodeModalOpen(false);
+                  }}
+                  className="flex-1 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Reset Default
+                </button>
+                <button
+                  type="submit"
+                  disabled={tempPincode.length !== 6}
+                  className="flex-1 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+                >
+                  Save Pincode
+                </button>
+              </div>
+            </form>
+            
+            <div className="mt-4 pt-3 border-t border-sky-100 text-[11px] text-slate-600 text-center">
+              * Delivery dates and slots are calculated based on your destination pincode.
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };

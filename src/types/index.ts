@@ -1,15 +1,22 @@
-export type ServiceType = 
-  | 'customized-gifts'
-  | '3d-printing'
-  | 'dtf-printing'
-  | 'sublimation-printing'
-  | 'photo-frames';
+export type ServiceType = string;
+export type CustomizationType = string;
 
-export type CustomizationType = 'text' | 'image' | 'image_text' | '3d_custom' | 'printing';
+export type ProductCategory = 
+  | 'Flowers'
+  | 'Cakes'
+  | 'Plants'
+  | 'Personalized Gifts'
+  | 'Gift Hampers'
+  | 'Chocolates'
+  | 'Jewellery'
+  | 'Home & Living'
+  | 'Occasions'
+  | 'Birthday Gifts'
+  | 'Anniversary Gifts';
 
 export interface ProductVariant {
   id: string;
-  name: string; // e.g. "Collar", "Round Neck", "A4", "4x6 inch", "750ml"
+  name: string;
   price: number;
   compareAtPrice?: number;
   inStock: boolean;
@@ -17,13 +24,17 @@ export interface ProductVariant {
 
 export interface CustomizationData {
   customMessage?: string;
-  uploadedFileName?: string;
-  uploadedFileType?: string;
-  uploadedFileSizeFormatted?: string;
-  uploadedFileUrl?: string; // Data URL or Blob URL preview
+  recipientName?: string;
+  selectedWeight?: string;
   selectedVariant?: string;
   selectedSize?: string;
   selectedColor?: string;
+  deliveryDate?: string;
+  deliverySlot?: string;
+  uploadedFileName?: string;
+  uploadedFileType?: string;
+  uploadedFileSizeFormatted?: string;
+  uploadedFileUrl?: string;
   additionalNotes?: string;
 }
 
@@ -32,33 +43,40 @@ export interface Product {
   name: string;
   slug: string;
   category: string;
-  service: ServiceType;
-  serviceName: string;
+  subCategory?: string;
+  service?: string;
+  serviceName?: string;
   description: string;
   price: number;
   compareAtPrice?: number;
   currency: string;
   images: string[];
   thumbnail: string;
-  customizable: boolean;
-  customizationType: CustomizationType;
+  customizable?: boolean;
+  customizationType?: string;
   availableSizes?: string[];
   availableColors?: string[];
   availableVariants?: ProductVariant[];
+  availableWeights?: string[];
   stock: number;
-  featured: boolean;
-  bestSeller: boolean;
-  newProduct: boolean;
+  featured?: boolean;
+  bestSeller?: boolean;
+  trending?: boolean;
+  newProduct?: boolean;
   tags: string[];
-  rating?: number;
-  reviewsCount?: number;
-  createdAt: string;
-  updatedAt: string;
+  rating: number;
+  reviewsCount: number;
+  deliveryLabel: string;
+  isExpress?: boolean;
+  isSameDay?: boolean;
+  occasion?: string;
+  createdAt?: string;
+  updatedAt?: string;
   isComingSoon?: boolean;
 }
 
 export interface CartItem {
-  cartItemId: string; // Composite unique key: product.id + JSON.stringify(customizationData)
+  cartItemId: string;
   product: Product;
   quantity: number;
   customization: CustomizationData;
@@ -74,11 +92,14 @@ export interface ShippingAddress {
   state: string;
   pincode: string;
   country: string;
+  deliveryDate?: string;
+  deliveryTimeSlot?: string;
+  messageCard?: string;
 }
 
 export type PaymentMethod = 'upi' | 'card' | 'netbanking' | 'cod';
-export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'test_mode_success';
-export type OrderStatus = 'Pending' | 'Confirmed' | 'Customization Processing' | 'Printing' | 'Ready' | 'Shipped' | 'Delivered' | 'Cancelled';
+export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'demo_success' | 'test_mode_success';
+export type OrderStatus = 'Confirmed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
 
 export interface Order {
   orderId: string;

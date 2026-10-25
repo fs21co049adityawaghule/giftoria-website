@@ -37,24 +37,24 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             success: 'bg-emerald-950 text-emerald-100 border-emerald-700/50',
             error: 'bg-rose-950 text-rose-100 border-rose-700/50',
             warning: 'bg-amber-950 text-amber-100 border-amber-700/50',
-            info: 'bg-giftoria-charcoal-900 text-white border-giftoria-gold-500/50',
+            info: 'bg-slate-900 text-white border-sky-400/40',
           };
 
           const icons = {
             success: <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />,
             error: <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />,
             warning: <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />,
-            info: <Info className="w-5 h-5 text-giftoria-gold-400 shrink-0" />,
+            info: <Info className="w-5 h-5 text-sky-400 shrink-0" />,
           };
 
           return (
             <div
               key={toast.id}
-              className={`pointer-events-auto flex items-center justify-between p-3.5 rounded-xl border shadow-xl backdrop-blur-md transition-all duration-300 transform translate-y-0 animate-bounce-subtle ${bgColors[toast.type]}`}
+              className={`pointer-events-auto flex items-center justify-between p-3.5 rounded-xl border shadow-xl backdrop-blur-md transition-all duration-300 transform translate-y-0 ${bgColors[toast.type]}`}
             >
               <div className="flex items-center gap-3 pr-2">
                 {icons[toast.type]}
-                <span className="text-sm font-medium leading-snug">{toast.message}</span>
+                <span className="text-xs font-semibold leading-snug">{toast.message}</span>
               </div>
               <button
                 onClick={() => removeToast(toast.id)}

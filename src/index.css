@@ -4,38 +4,36 @@
 
 @layer base {
   :root {
-    --color-wine: #6B1D2F;
-    --color-cream: #FDFBF7;
-    --color-gold: #D4AF37;
-    --color-charcoal: #1F2421;
-    --color-bg: #FAF8F5;
+    --color-primary: #38BDF8;
+    --color-secondary: #E0F2FE;
+    --color-accent: #0284C7;
+    --color-bg: #F8FCFF;
+    --color-text: #0F172A;
+    --color-border: #D6EAF8;
   }
 
   body {
-    background-color: #FAF8F5;
-    color: #1F2421;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-  }
-
-  h1, h2, h3, .font-serif {
-    font-family: 'Playfair Display', serif;
+    background-color: #F8FCFF;
+    color: #0F172A;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar in Sky Blue theme */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: #FAF8F5;
+  background: #F8FCFF;
 }
 ::-webkit-scrollbar-thumb {
-  background: #D24564;
-  border-radius: 4px;
+  background: #38BDF8;
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #6B1D2F;
+  background: #0284C7;
 }
 
 /* Hide scrollbar for category horizontal scroll */

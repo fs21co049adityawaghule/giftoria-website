@@ -6,10 +6,19 @@ import { useToast } from './ToastContext';
 interface OrderContextType {
   orders: Order[];
   createOrder: (shippingAddress: ShippingAddress, paymentMethod: PaymentMethod) => Order | null;
+  placeOrder: (
+    shippingAddress: ShippingAddress,
+    items: CartItem[],
+    subtotal: number,
+    discount: number,
+    shippingFee: number,
+    grandTotal: number,
+    paymentMethod: PaymentMethod
+  ) => Order;
   getOrderById: (orderId: string) => Order | undefined;
 }
 
-const ORDERS_STORAGE_KEY = 'giftoria_orders';
+const ORDERS_STORAGE_KEY = 'skygift_orders';
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
@@ -34,23 +43,26 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [orders]);
 
-  const createOrder = (shippingAddress: ShippingAddress, paymentMethod: PaymentMethod): Order | null => {
-    if (cart.length === 0) {
-      showToast('Your cart is empty', 'error');
-      return null;
-    }
-
+  const placeOrder = (
+    shippingAddress: ShippingAddress,
+    items: CartItem[],
+    ordSubtotal: number,
+    ordDiscount: number,
+    ordShippingFee: number,
+    ordGrandTotal: number,
+    paymentMethod: PaymentMethod
+  ): Order => {
     const randomSuffix = Math.floor(10000 + Math.random() * 90000);
-    const orderId = `GIFT-2026-${randomSuffix}`;
+    const orderId = `SKY-2026-${randomSuffix}`;
 
     const newOrder: Order = {
       orderId,
       customer: shippingAddress,
-      items: [...cart],
-      subtotal,
-      discount,
-      shippingFee,
-      grandTotal,
+      items: items.length > 0 ? [...items] : [...cart],
+      subtotal: ordSubtotal,
+      discount: ordDiscount,
+      shippingFee: ordShippingFee,
+      grandTotal: ordGrandTotal,
       paymentMethod,
       paymentStatus: paymentMethod === 'cod' ? 'pending' : 'test_mode_success',
       orderStatus: 'Confirmed',
@@ -60,10 +72,28 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     setOrders((prev) => [newOrder, ...prev]);
+    return newOrder;
+  };
+
+  const createOrder = (shippingAddress: ShippingAddress, paymentMethod: PaymentMethod): Order | null => {
+    if (cart.length === 0) {
+      showToast('Your cart is empty', 'error');
+      return null;
+    }
+
+    const order = placeOrder(
+      shippingAddress,
+      cart,
+      subtotal,
+      discount,
+      shippingFee,
+      grandTotal,
+      paymentMethod
+    );
+
     clearCart();
     showToast('Order placed successfully! ❤️', 'success');
-
-    return newOrder;
+    return order;
   };
 
   const getOrderById = (orderId: string): Order | undefined => {
@@ -71,7 +101,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   return (
-    <OrderContext.Provider value={{ orders, createOrder, getOrderById }}>
+    <OrderContext.Provider value={{ orders, createOrder, placeOrder, getOrderById }}>
       {children}
     </OrderContext.Provider>
   );

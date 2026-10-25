@@ -1,164 +1,209 @@
 import React from 'react';
 import { useRoute, Link } from 'wouter';
+import { 
+  CheckCircle2, 
+  MapPin, 
+  Calendar, 
+  Clock, 
+  Package, 
+  Phone, 
+  ArrowRight, 
+  Printer, 
+  Share2,
+  Gift
+} from 'lucide-react';
 import { useOrder } from '../context/OrderContext';
-import { CheckCircle2, Heart, Package, ArrowRight, Printer, FileText, MapPin, Clock } from 'lucide-react';
+import { businessConfig } from '../config/businessConfig';
 
 export const OrderConfirmationPage: React.FC = () => {
   const [, params] = useRoute('/order-confirmation/:orderId');
-  const { getOrderById } = useOrder();
+  const { orders } = useOrder();
 
   const orderId = params?.orderId;
-  const order = orderId ? getOrderById(orderId) : undefined;
+  const order = orders.find(o => o.orderId === orderId) || orders[0];
 
   if (!order) {
     return (
-      <div className="max-w-md mx-auto my-20 p-8 text-center bg-white rounded-3xl border shadow-sm space-y-4">
-        <h2 className="font-serif text-2xl font-bold text-giftoria-wine-900">Order Not Found</h2>
-        <p className="text-xs text-gray-500 font-medium">We could not locate this order ID.</p>
-        <Link href="/products" className="inline-block bg-giftoria-wine-800 text-white font-bold text-xs py-3 px-6 rounded-xl">
-          Return to Shop
-        </Link>
+      <div className="bg-[#F8FCFF] min-h-[60vh] flex items-center justify-center py-16 px-4">
+        <div className="bg-white rounded-3xl border border-sky-100 p-8 text-center max-w-sm w-full shadow-xs">
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Order Not Found</h2>
+          <p className="text-xs text-slate-500 mb-6">Could not retrieve order details.</p>
+          <Link
+            href="/"
+            className="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl text-xs shadow-sm transition-all inline-block"
+          >
+            Return to Homepage
+          </Link>
+        </div>
       </div>
     );
   }
 
-  const statusSteps = [
-    'Confirmed',
-    'Customization Processing',
-    'Printing',
-    'Ready',
-    'Shipped',
-    'Delivered',
-  ];
-
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 pb-24">
-      {/* Thank You Header */}
-      <div className="bg-gradient-to-r from-giftoria-wine-900 via-giftoria-wine-800 to-giftoria-charcoal-900 text-white rounded-3xl p-8 sm:p-10 text-center space-y-4 shadow-xl">
-        <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-300 border-2 border-emerald-400 flex items-center justify-center mx-auto">
-          <CheckCircle2 className="w-8 h-8" />
-        </div>
-        <h1 className="font-serif font-bold text-2xl sm:text-4xl text-white">
-          Thank You for Shopping with GIFTORIA ❤️
-        </h1>
-        <p className="text-xs sm:text-sm text-gray-200">
-          Your custom order has been received and sent to our printing studio!
-        </p>
-        <div className="inline-block bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl text-xs font-mono font-bold text-giftoria-gold-400 border border-white/20">
-          Order ID: {order.orderId}
-        </div>
-      </div>
+    <div className="bg-[#F8FCFF] min-h-screen py-10 text-slate-800">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* Success Card */}
+        <div className="bg-white rounded-3xl border border-sky-100 p-6 sm:p-10 shadow-sm text-center mb-8">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center mb-4">
+            <CheckCircle2 className="w-10 h-10 stroke-[2]" />
+          </div>
 
-      {/* Live Order Status Tracker */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-giftoria-wine-800/10 shadow-sm space-y-4">
-        <h3 className="font-serif font-bold text-base text-giftoria-wine-900 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-giftoria-wine-800" />
-          <span>Live Order Status Tracker</span>
-        </h3>
+          <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+            Order Confirmed (Demo Mode)
+          </span>
 
-        <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-center text-xs pt-2">
-          {statusSteps.map((step, idx) => {
-            const isCurrent = step === order.orderStatus;
-            const isPassed = idx <= statusSteps.indexOf(order.orderStatus);
-            return (
-              <div
-                key={step}
-                className={`p-2.5 rounded-xl border text-[11px] font-semibold transition-all ${
-                  isCurrent
-                    ? 'bg-giftoria-wine-800 text-white border-giftoria-wine-800 shadow-md font-bold'
-                    : isPassed
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                    : 'bg-gray-50 text-gray-400 border-gray-200'
-                }`}
-              >
-                <div>Step {idx + 1}</div>
-                <div className="truncate mt-0.5">{step}</div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mt-3">
+            Thank You For Your Celebration Order!
+          </h1>
+          <p className="text-xs text-slate-500 max-w-md mx-auto mt-2">
+            Order reference: <strong className="text-sky-600 font-mono text-sm">{order.orderId}</strong>. A confirmation SMS & email have been simulated to {order.customer.email}.
+          </p>
+
+          {/* Demo disclaimer */}
+          <div className="mt-4 p-3 bg-sky-50 border border-sky-200 rounded-xl text-[11px] text-sky-800 max-w-lg mx-auto">
+            {businessConfig.demoModeNotice}
+          </div>
+        </div>
+
+        {/* Tracking Timeline Simulation */}
+        <div className="bg-white rounded-3xl border border-sky-100 p-6 sm:p-8 shadow-xs mb-8">
+          <h3 className="font-bold text-slate-900 text-base mb-6 flex items-center gap-2">
+            <Package className="w-5 h-5 text-sky-500" />
+            Live Delivery Journey
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 relative">
+            <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
+              <div className="w-8 h-8 rounded-full bg-sky-500 text-white flex items-center justify-center text-xs font-bold shadow-md shadow-sky-200 mb-2">
+                ✓
               </div>
-            );
-          })}
+              <h4 className="text-xs font-bold text-slate-900">Order Placed</h4>
+              <p className="text-[10px] text-slate-500 mt-0.5">Details confirmed</p>
+            </div>
+
+            <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
+              <div className="w-8 h-8 rounded-full bg-sky-100 text-sky-600 border border-sky-300 flex items-center justify-center text-xs font-bold mb-2 animate-pulse">
+                2
+              </div>
+              <h4 className="text-xs font-bold text-slate-900">Crafting & Baking</h4>
+              <p className="text-[10px] text-slate-500 mt-0.5">Fresh preparation</p>
+            </div>
+
+            <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
+              <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xs font-bold mb-2">
+                3
+              </div>
+              <h4 className="text-xs font-bold text-slate-700">Out for Delivery</h4>
+              <p className="text-[10px] text-slate-500 mt-0.5">In temperature fleet</p>
+            </div>
+
+            <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
+              <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xs font-bold mb-2">
+                4
+              </div>
+              <h4 className="text-xs font-bold text-slate-700">Doorstep Delivery</h4>
+              <p className="text-[10px] text-slate-500 mt-0.5">Smiles delivered</p>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Order Items Recap & Customization Summary */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-giftoria-wine-800/10 shadow-sm space-y-6">
-        <h3 className="font-serif font-bold text-lg text-giftoria-wine-900 border-b pb-3">
-          Customization &amp; Items Summary
-        </h3>
+        {/* Order Details & Summary Card */}
+        <div className="bg-white rounded-3xl border border-sky-100 p-6 sm:p-8 shadow-xs space-y-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-sky-100">
+            <div>
+              <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider">
+                Recipient & Address
+              </span>
+              <p className="font-bold text-slate-900 text-sm mt-1">{order.customer.fullName}</p>
+              <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                {order.customer.addressLine}, {order.customer.city}, {order.customer.pincode}
+              </p>
+              <p className="text-xs text-slate-600 mt-0.5">Phone: {order.customer.mobile}</p>
+            </div>
 
-        <div className="space-y-4">
-          {order.items.map((item) => (
-            <div key={item.cartItemId} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
-              <div className="flex gap-4">
-                <img src={item.product.thumbnail} alt="" className="w-16 h-20 object-cover rounded-xl shrink-0" />
-                <div className="space-y-1 text-xs">
-                  <div className="font-serif font-bold text-sm text-giftoria-wine-900">{item.product.name}</div>
-                  <div className="text-gray-500">Qty: {item.quantity} × ₹{item.product.price}</div>
-
-                  {item.customization.customMessage && (
-                    <div className="bg-giftoria-cream-100 p-2 rounded-xl text-[11px] text-giftoria-wine-900 border border-giftoria-wine-800/10">
-                      <strong>Custom Message:</strong> "{item.customization.customMessage}"
-                    </div>
-                  )}
-
-                  {item.customization.uploadedFileName && (
-                    <div className="text-[11px] text-emerald-800 bg-emerald-50 p-1.5 rounded-lg flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5" />
-                      <span><strong>Design File:</strong> {item.customization.uploadedFileName} ({item.customization.uploadedFileSizeFormatted})</span>
-                    </div>
-                  )}
+            <div>
+              <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider">
+                Scheduled Slot
+              </span>
+              <p className="font-bold text-slate-900 text-sm mt-1">
+                {order.customer.deliveryDate || 'Today'}
+              </p>
+              <p className="text-xs text-slate-600 mt-0.5">
+                {order.customer.deliveryTimeSlot || 'Standard Delivery'}
+              </p>
+              {order.customer.messageCard && (
+                <div className="mt-2 p-2.5 bg-sky-50/60 rounded-xl border border-sky-100 text-xs italic text-sky-800">
+                  Card message: "{order.customer.messageCard}"
                 </div>
-              </div>
-
-              <div className="font-serif font-bold text-base text-giftoria-wine-900 self-end sm:self-center">
-                ₹{item.product.price * item.quantity}
-              </div>
+              )}
             </div>
-          ))}
-        </div>
+          </div>
 
-        {/* Customer Address Details */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-gray-200 text-xs">
-          <div className="space-y-1">
-            <h4 className="font-bold text-giftoria-wine-900 flex items-center gap-1.5">
-              <MapPin className="w-4 h-4 text-giftoria-wine-800" />
-              <span>Delivery Address</span>
+          {/* Items */}
+          <div className="space-y-3">
+            <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-400">
+              Purchased Items ({order.items.length})
             </h4>
-            <div className="text-gray-700 leading-relaxed pt-1">
-              <strong>{order.customer.fullName}</strong><br />
-              {order.customer.addressLine}, {order.customer.city}<br />
-              {order.customer.state} - {order.customer.pincode}<br />
-              Mobile: {order.customer.mobile}
+            <div className="divide-y divide-sky-50">
+              {order.items.map((item) => (
+                <div key={item.cartItemId} className="py-2.5 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={item.product.thumbnail || item.product.images[0]}
+                      alt={item.product.name}
+                      className="w-12 h-12 rounded-xl object-cover bg-sky-50"
+                    />
+                    <div>
+                      <p className="font-semibold text-slate-800">{item.product.name}</p>
+                      <span className="text-slate-500 text-[11px]">Quantity: {item.quantity}</span>
+                    </div>
+                  </div>
+                  <span className="font-bold text-slate-900">
+                    ₹{(item.product.price * item.quantity).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="space-y-1">
-            <h4 className="font-bold text-giftoria-wine-900">Payment Breakdown</h4>
-            <div className="text-gray-700 space-y-1 pt-1">
-              <div className="flex justify-between"><span>Method:</span><span className="font-bold uppercase">{order.paymentMethod}</span></div>
-              <div className="flex justify-between"><span>Status:</span><span className="font-bold text-emerald-700">{order.paymentStatus}</span></div>
-              <div className="flex justify-between text-sm font-bold text-giftoria-wine-900 pt-2 border-t"><span>Total Paid:</span><span>₹{order.grandTotal}</span></div>
+          {/* Totals */}
+          <div className="pt-4 border-t border-sky-100 space-y-2 text-xs">
+            <div className="flex justify-between text-slate-600">
+              <span>Subtotal</span>
+              <span className="font-bold text-slate-900">₹{order.subtotal.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="flex justify-between text-slate-600">
+              <span>Delivery Fee</span>
+              <span className="font-bold text-slate-900">
+                {order.shippingFee === 0 ? <span className="text-emerald-600">FREE</span> : `₹${order.shippingFee}`}
+              </span>
+            </div>
+            <div className="flex justify-between text-base font-black text-slate-900 pt-2 border-t border-sky-100">
+              <span>Grand Total</span>
+              <span className="text-sky-600">₹{order.grandTotal.toLocaleString('en-IN')}</span>
             </div>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 border-t border-gray-200">
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <Link
             href="/products"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-giftoria-wine-800 hover:bg-giftoria-wine-900 text-white font-bold text-xs py-3.5 px-6 rounded-2xl shadow-wine transition-all"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-6 rounded-2xl shadow-sm transition-all text-xs"
           >
-            <span>Continue Shopping</span>
-            <ArrowRight className="w-4 h-4" />
+            <Gift className="w-4 h-4" />
+            Continue Shopping
           </Link>
-
-          <Link
-            href="/orders"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-giftoria-wine-900 border border-gray-300 font-bold text-xs py-3.5 px-6 rounded-2xl transition-all"
+          <button
+            onClick={() => window.print()}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold py-3 px-6 rounded-2xl shadow-xs transition-all text-xs"
           >
-            <Package className="w-4 h-4" />
-            <span>View All Orders</span>
-          </Link>
+            <Printer className="w-4 h-4" />
+            Print Order Receipt
+          </button>
         </div>
+
       </div>
     </div>
   );

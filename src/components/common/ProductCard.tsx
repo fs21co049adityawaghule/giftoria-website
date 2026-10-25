@@ -1,173 +1,132 @@
 import React from 'react';
-import { Link, useLocation } from 'wouter';
-import { Heart, ShoppingBag, Zap, Star, Check } from 'lucide-react';
+import { useLocation } from 'wouter';
+import { Heart, ShoppingBag, Star, Zap } from 'lucide-react';
 import { Product } from '../../types';
-import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
 
 interface ProductCardProps {
   product: Product;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const [, navigate] = useLocation();
-  const { isWishlisted, toggleWishlist } = useWishlist();
+  const [, setLocation] = useLocation();
   const { addToCart } = useCart();
-  const wishlisted = isWishlisted(product.id);
+  const { isWishlisted, toggleWishlist } = useWishlist();
 
-  const handleBuyNow = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    addToCart(product, {}, 1);
-    navigate('/cart');
+  const handleCardClick = () => {
+    setLocation(`/product/${product.slug}`);
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
     e.stopPropagation();
     addToCart(product, {}, 1);
   };
 
-  const handleToggleFavorite = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleWishlistToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     toggleWishlist(product);
   };
 
-  // Badge picker
-  const renderBadge = () => {
-    if (product.isComingSoon) {
-      return <span className="bg-gray-800 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Coming Soon</span>;
-    }
-    if (product.bestSeller) {
-      return <span className="bg-giftoria-gold-500 text-giftoria-charcoal-900 text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-sm">BEST SELLER</span>;
-    }
-    if (product.newProduct) {
-      return <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">NEW</span>;
-    }
-    if (product.customizable) {
-      return <span className="bg-giftoria-wine-800 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">CUSTOMIZABLE</span>;
-    }
-    return null;
-  };
+  const discountPercent = product.compareAtPrice && product.compareAtPrice > product.price
+    ? Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)
+    : 0;
+
+  const wishlisted = isWishlisted(product.id);
 
   return (
-    <div className="group bg-white rounded-2xl border border-giftoria-wine-800/10 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between h-full">
-      <Link href={`/product/${product.slug}`} className="block flex-1">
-        {/* Top Product Image Container */}
-        <div className="relative aspect-[4/5] bg-giftoria-cream-200 overflow-hidden">
-          <img
-            src={product.thumbnail || product.images[0]}
-            alt={product.name}
-            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
-          />
+    <div 
+      onClick={handleCardClick}
+      className="group relative bg-white rounded-2xl border border-sky-100 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden cursor-pointer hover:border-sky-300"
+    >
+      {/* Top badges */}
+      <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 items-start">
+        {discountPercent > 0 && (
+          <span className="bg-sky-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+            {discountPercent}% OFF
+          </span>
+        )}
+        {product.isExpress && (
+          <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
+            <Zap className="w-2.5 h-2.5 fill-white" /> Express
+          </span>
+        )}
+      </div>
 
-          {/* Top Left Badge */}
-          <div className="absolute top-2.5 left-2.5 z-10">
-            {renderBadge()}
+      {/* Wishlist button */}
+      <button
+        onClick={handleWishlistToggle}
+        aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+        className={`absolute top-3 right-3 z-10 p-2 rounded-full backdrop-blur-md transition-all duration-200 ${
+          wishlisted 
+            ? 'bg-rose-50 text-rose-500 shadow-sm' 
+            : 'bg-white/80 text-slate-500 hover:text-rose-500 hover:bg-white shadow-sm'
+        }`}
+      >
+        <Heart className={`w-4 h-4 ${wishlisted ? 'fill-rose-500' : ''}`} />
+      </button>
+
+      {/* Product Image */}
+      <div className="relative aspect-square w-full overflow-hidden bg-sky-50/50">
+        <img
+          src={product.thumbnail || product.images[0]}
+          alt={product.name}
+          loading="lazy"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          onError={(e) => {
+            // Fallback image if broken
+            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=600';
+          }}
+        />
+      </div>
+
+      {/* Product Details */}
+      <div className="p-4 flex flex-col flex-1 justify-between bg-white">
+        <div>
+          {/* Delivery notice tag */}
+          <div className="text-[11px] font-medium text-sky-700 bg-sky-50 border border-sky-100 rounded-md px-2 py-0.5 inline-block mb-1.5">
+            {product.deliveryLabel || 'Earliest Delivery: Today'}
           </div>
 
-          {/* Top Right Favorite Overlay Button */}
+          {/* Product Title */}
+          <h3 className="font-semibold text-slate-800 text-sm md:text-base line-clamp-2 leading-snug group-hover:text-sky-600 transition-colors">
+            {product.name}
+          </h3>
+
+          {/* Rating */}
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <div className="flex items-center gap-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-1.5 py-0.5 rounded">
+              <span>{product.rating.toFixed(1)}</span>
+              <Star className="w-3 h-3 fill-emerald-600 text-emerald-600" />
+            </div>
+            <span className="text-xs text-slate-600">({product.reviewsCount})</span>
+          </div>
+        </div>
+
+        {/* Pricing & Add to Cart button */}
+        <div className="pt-3 mt-3 border-t border-sky-50 flex items-center justify-between">
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-base md:text-lg font-bold text-slate-900">
+                ₹{product.price.toLocaleString('en-IN')}
+              </span>
+              {product.compareAtPrice && product.compareAtPrice > product.price && (
+                <span className="text-xs text-slate-600 line-through">
+                  ₹{product.compareAtPrice.toLocaleString('en-IN')}
+                </span>
+              )}
+            </div>
+          </div>
+
           <button
-            onClick={handleToggleFavorite}
-            className={`absolute top-2.5 right-2.5 z-10 p-2 rounded-full backdrop-blur-md transition-all duration-200 shadow-md ${
-              wishlisted
-                ? 'bg-rose-500 text-white scale-110'
-                : 'bg-white/80 text-gray-700 hover:bg-white hover:text-rose-500'
-            }`}
-            aria-label={wishlisted ? "Remove from favorites" : "Add to favorites"}
-            title={wishlisted ? "Remove from favorites" : "Add to favorites"}
+            onClick={handleAddToCart}
+            className="flex items-center gap-1 bg-sky-500 hover:bg-sky-600 active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all shadow-sm shadow-sky-200"
+            aria-label="Add to cart"
           >
-            <Heart className={`w-4 h-4 ${wishlisted ? 'fill-current' : ''}`} />
+            <ShoppingBag className="w-3.5 h-3.5" />
+            <span>Add</span>
           </button>
         </div>
-
-        {/* Product Details Section below image */}
-        <div className="p-3.5 sm:p-4 flex flex-col flex-1 justify-between">
-          <div>
-            {/* Category / Service name */}
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-giftoria-wine-800/80 mb-1">
-              {product.serviceName}
-            </div>
-
-            {/* Product Title */}
-            <h3 className="font-medium text-xs sm:text-sm text-giftoria-charcoal-900 line-clamp-2 group-hover:text-giftoria-wine-800 transition-colors leading-snug">
-              {product.name}
-            </h3>
-
-            {/* Rating Stars */}
-            {product.rating && (
-              <div className="flex items-center gap-1 mt-1.5">
-                <div className="flex items-center text-amber-400">
-                  <Star className="w-3 h-3 fill-current" />
-                </div>
-                <span className="text-[11px] font-bold text-giftoria-charcoal-800">{product.rating}</span>
-                {product.reviewsCount && (
-                  <span className="text-[10px] text-gray-400">({product.reviewsCount})</span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Price Row */}
-          <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-baseline gap-2">
-            <span className="font-bold text-sm sm:text-base text-giftoria-wine-900">
-              ₹{product.price}
-            </span>
-            {product.compareAtPrice && product.compareAtPrice > product.price && (
-              <>
-                <span className="text-xs text-gray-400 line-through">
-                  ₹{product.compareAtPrice}
-                </span>
-                <span className="text-[10px] font-bold text-emerald-600">
-                  {Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)}% OFF
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-      </Link>
-
-      {/* REQUIRED ACTION ROW DIRECTLY BELOW PRODUCT IMAGE / DETAILS */}
-      <div className="p-2 sm:p-3 pt-0 grid grid-cols-3 gap-1.5 border-t border-gray-50 bg-gray-50/50">
-        
-        {/* Buy Now Button */}
-        <button
-          onClick={handleBuyNow}
-          disabled={product.isComingSoon || product.stock <= 0}
-          className="flex items-center justify-center gap-1 bg-giftoria-gold-500 hover:bg-giftoria-gold-600 disabled:opacity-50 text-giftoria-charcoal-900 text-[11px] font-bold py-2 px-1.5 rounded-xl transition-all shadow-sm active:scale-95"
-          title="Buy Now"
-        >
-          <Zap className="w-3.5 h-3.5 shrink-0 fill-current" />
-          <span className="truncate">Buy</span>
-        </button>
-
-        {/* Favorite Heart Toggle Button */}
-        <button
-          onClick={handleToggleFavorite}
-          className={`flex items-center justify-center gap-1 border text-[11px] font-bold py-2 px-1.5 rounded-xl transition-all active:scale-95 ${
-            wishlisted
-              ? 'bg-rose-50 border-rose-300 text-rose-600'
-              : 'bg-white border-gray-200 text-gray-700 hover:border-giftoria-wine-800 hover:text-giftoria-wine-800'
-          }`}
-          title={wishlisted ? "Saved in Wishlist" : "Save to Favorites"}
-        >
-          <Heart className={`w-3.5 h-3.5 shrink-0 ${wishlisted ? 'fill-current text-rose-600' : ''}`} />
-          <span className="truncate hidden xs:inline">{wishlisted ? 'Saved' : 'Fav'}</span>
-        </button>
-
-        {/* Add to Cart Button */}
-        <button
-          onClick={handleAddToCart}
-          disabled={product.isComingSoon || product.stock <= 0}
-          className="flex items-center justify-center gap-1 bg-giftoria-wine-800 hover:bg-giftoria-wine-900 disabled:opacity-50 text-white text-[11px] font-bold py-2 px-1.5 rounded-xl transition-all shadow-sm active:scale-95"
-          title="Add to Cart"
-        >
-          <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">Cart</span>
-        </button>
-
       </div>
     </div>
   );

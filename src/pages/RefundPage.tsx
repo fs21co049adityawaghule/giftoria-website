@@ -1,21 +1,48 @@
 import React from 'react';
+import { RotateCcw, ShieldCheck } from 'lucide-react';
+import { businessConfig } from '../config/businessConfig';
 
 export const RefundPage: React.FC = () => {
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6 pb-24 text-xs leading-relaxed text-gray-700">
-      <h1 className="font-serif font-bold text-3xl text-giftoria-wine-900 border-b pb-4">
-        Return &amp; Refund Policy
-      </h1>
+    <div className="bg-[#F8FCFF] min-h-screen py-12 text-slate-800">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        
+        <div className="text-center space-y-3">
+          <span className="text-xs font-bold uppercase tracking-wider text-sky-600 bg-sky-50 px-3 py-1 rounded-full border border-sky-100">
+            Hassle-Free Policy
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900">
+            Cancellation & Refund Policy
+          </h1>
+          <p className="text-xs text-slate-500">
+            Transparent policies crafted to ensure customer delight and peace of mind
+          </p>
+        </div>
 
-      <section className="space-y-2">
-        <h2 className="font-serif font-bold text-base text-giftoria-wine-900">1. Personalized Products Policy</h2>
-        <p>Because each GIFTORIA item is custom-made with your personalized text or uploaded photograph, returns are accepted in cases of manufacturing damage or printing error on our end.</p>
-      </section>
+        <div className="bg-white rounded-3xl border border-sky-100 p-6 sm:p-8 shadow-xs space-y-6 text-xs text-slate-600 leading-relaxed">
+          <div className="space-y-2">
+            <h3 className="font-bold text-slate-900 text-sm">1. Order Cancellation</h3>
+            <p>
+              • Same-day and perishable orders (Cakes & Fresh Flowers) can be cancelled up to 4 hours prior to the scheduled delivery slot.
+            </p>
+            <p>
+              • Personalized and custom engraved items cannot be cancelled once production or laser engraving has begun.
+            </p>
+          </div>
 
-      <section className="space-y-2">
-        <h2 className="font-serif font-bold text-base text-giftoria-wine-900">2. Damaged Item Replacement</h2>
-        <p>If your 3D print or glass photo frame arrives damaged during transit, please inform us within 48 hours with an unboxing video via WhatsApp (+91 83568 29605). We will immediately dispatch a replacement.</p>
-      </section>
+          <div className="space-y-2 pt-4 border-t border-sky-50">
+            <h3 className="font-bold text-slate-900 text-sm">2. 100% Replacement or Refund</h3>
+            <p>
+              If your gift arrived damaged or in an unsatisfactory condition, please share a picture with our support team within 12 hours of delivery. We will issue an instant free replacement or 100% refund to your original payment method within 3 to 5 business days.
+            </p>
+          </div>
+
+          <div className="p-4 bg-sky-50 rounded-2xl border border-sky-200 text-sky-900 text-[11px]">
+            {businessConfig.demoModeNotice}
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 };

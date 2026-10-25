@@ -1,26 +1,58 @@
 import React from 'react';
+import { Truck, Clock, ShieldCheck, MapPin } from 'lucide-react';
 import { businessConfig } from '../config/businessConfig';
 
 export const ShippingPage: React.FC = () => {
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6 pb-24 text-xs leading-relaxed text-gray-700">
-      <h1 className="font-serif font-bold text-3xl text-giftoria-wine-900 border-b pb-4">
-        Shipping Policy
-      </h1>
+    <div className="bg-[#F8FCFF] min-h-screen py-12 text-slate-800">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        
+        <div className="text-center space-y-3">
+          <span className="text-xs font-bold uppercase tracking-wider text-sky-600 bg-sky-50 px-3 py-1 rounded-full border border-sky-100">
+            Logistics & Delivery
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900">
+            Shipping & Delivery Information
+          </h1>
+          <p className="text-xs text-slate-500">
+            Learn how SkyGift delivers freshness on time across 450+ Indian cities
+          </p>
+        </div>
 
-      <div className="bg-giftoria-cream-100 p-4 rounded-2xl border border-giftoria-wine-800/10 font-bold text-giftoria-wine-900">
-        Free Shipping across India on all orders over ₹{businessConfig.freeShippingThreshold}!
+        <div className="bg-white rounded-3xl border border-sky-100 p-6 sm:p-8 shadow-xs space-y-6 text-xs text-slate-600 leading-relaxed">
+          <div className="space-y-2">
+            <h3 className="font-bold text-slate-900 text-sm">1. Delivery Time Slots</h3>
+            <p>
+              • <strong>Standard Delivery:</strong> Dispatched between 9:00 AM and 6:00 PM on your selected date. Free on orders above ₹{businessConfig.freeShippingThreshold}.
+            </p>
+            <p>
+              • <strong>2-Hour Express Delivery:</strong> Available for select perishable items like cakes and floral bouquets in metro cities.
+            </p>
+            <p>
+              • <strong>Midnight Surprise Delivery:</strong> Guaranteed handover between 11:30 PM and 12:30 AM right as the special day begins.
+            </p>
+          </div>
+
+          <div className="space-y-2 pt-4 border-t border-sky-50">
+            <h3 className="font-bold text-slate-900 text-sm">2. Delivery Serviceability</h3>
+            <p>
+              We service over 450+ cities across India. Courier products such as personalized plaques, custom mugs, and gift hampers are shipped via prioritized air express courier partners with door-to-door tracking.
+            </p>
+          </div>
+
+          <div className="space-y-2 pt-4 border-t border-sky-50">
+            <h3 className="font-bold text-slate-900 text-sm">3. Freshness & Temperature Fleet</h3>
+            <p>
+              Perishable items (flowers, cakes, luxury chocolates) travel in insulated carriers to preserve fresh aromas, delicate frostings, and petal moisture intact.
+            </p>
+          </div>
+
+          <div className="p-4 bg-sky-50 rounded-2xl border border-sky-200 text-sky-900 text-[11px]">
+            {businessConfig.demoModeNotice}
+          </div>
+        </div>
+
       </div>
-
-      <section className="space-y-2">
-        <h2 className="font-serif font-bold text-base text-giftoria-wine-900">1. Production &amp; Dispatch Timeline</h2>
-        <p>Customized gifts, DTF apparel, and photo frames are dispatched within 24–48 hours. Precision 3D printed items (such as lithophane moon lamps) dispatches within 48 hours following layer manufacturing.</p>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="font-serif font-bold text-base text-giftoria-wine-900">2. Delivery Partners &amp; Tracking</h2>
-        <p>We partner with premier express courier networks across India. Once your order status reaches "Shipped", tracking updates are shared via SMS and email.</p>
-      </section>
     </div>
   );
 };

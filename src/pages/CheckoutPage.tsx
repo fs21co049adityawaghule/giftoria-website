@@ -1,315 +1,447 @@
 import React, { useState } from 'react';
 import { useLocation } from 'wouter';
+import { 
+  ShieldCheck, 
+  Truck, 
+  Calendar, 
+  Clock, 
+  MapPin, 
+  CheckCircle2, 
+  AlertCircle,
+  CreditCard,
+  Lock,
+  ArrowRight
+} from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useOrder } from '../context/OrderContext';
 import { useToast } from '../context/ToastContext';
-import { ShippingAddress, PaymentMethod } from '../types';
-import { ShieldCheck, Truck, Lock, AlertCircle, FileText, CheckCircle2 } from 'lucide-react';
+import { ShippingAddress } from '../types';
+import { businessConfig } from '../config/businessConfig';
 import confetti from 'canvas-confetti';
 
 export const CheckoutPage: React.FC = () => {
-  const [, navigate] = useLocation();
-  const { cart, subtotal, shippingFee, grandTotal } = useCart();
-  const { createOrder } = useOrder();
+  const [, setLocation] = useLocation();
+  const { cart, subtotal, shippingFee, grandTotal, clearCart } = useCart();
+  const { placeOrder } = useOrder();
   const { showToast } = useToast();
 
-  const [address, setAddress] = useState<ShippingAddress>({
-    fullName: '',
-    mobile: '',
-    email: '',
-    addressLine: '',
-    city: '',
-    state: 'Maharashtra',
-    pincode: '',
-    country: 'India',
-  });
+  const [fullName, setFullName] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [email, setEmail] = useState('');
+  const [addressLine, setAddressLine] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('Maharashtra');
+  const [pincode, setPincode] = useState('400001');
 
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('upi');
-  const [formErrors, setFormErrors] = useState<Partial<ShippingAddress>>({});
+  // Delivery preferences
+  const [deliveryDate, setDeliveryDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+  const [deliverySlot, setDeliverySlot] = useState('Standard Daytime (9:00 AM - 6:00 PM)');
+  const [messageCard, setMessageCard] = useState('');
+
+  // Payment method selection (Demo mode)
+  const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'cod'>('upi');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (cart.length === 0) {
-    navigate('/cart');
-    return null;
+    return (
+      <div className="bg-[#F8FCFF] min-h-[60vh] flex items-center justify-center py-16 px-4">
+        <div className="bg-white rounded-3xl border border-sky-100 p-8 text-center max-w-sm w-full shadow-xs">
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Your cart is empty</h2>
+          <p className="text-xs text-slate-500 mb-6">Please add items to proceed with gifting checkout.</p>
+          <button
+            onClick={() => setLocation('/products')}
+            className="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl text-xs shadow-sm transition-all"
+          >
+            Explore Gifts
+          </button>
+        </div>
+      </div>
+    );
   }
 
-  const validateForm = (): boolean => {
-    const errors: Partial<ShippingAddress> = {};
-    if (!address.fullName.trim()) errors.fullName = 'Full Name is required';
-    if (!address.mobile.trim() || address.mobile.length < 10) errors.mobile = 'Valid 10-digit mobile number required';
-    if (!address.email.trim() || !address.email.includes('@')) errors.email = 'Valid email address required';
-    if (!address.addressLine.trim()) errors.addressLine = 'Street address is required';
-    if (!address.city.trim()) errors.city = 'City is required';
-    if (!address.pincode.trim() || address.pincode.length < 6) errors.pincode = 'Valid 6-digit Pincode required';
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const handleSubmitOrder = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) {
-      showToast('Please fix the errors in the shipping form', 'error');
+
+    // Validation
+    if (!fullName.trim()) {
+      showToast('Please enter recipient / sender full name.', 'error');
+      return;
+    }
+    if (!mobile.trim() || mobile.replace(/\D/g, '').length < 10) {
+      showToast('Please provide a valid 10-digit mobile number.', 'error');
+      return;
+    }
+    if (!email.trim() || !email.includes('@')) {
+      showToast('Please provide a valid email address for delivery updates.', 'error');
+      return;
+    }
+    if (!addressLine.trim()) {
+      showToast('Please specify the complete delivery address.', 'error');
+      return;
+    }
+    if (!city.trim()) {
+      showToast('Please specify the delivery city.', 'error');
+      return;
+    }
+    if (!pincode.trim() || pincode.trim().length !== 6 || !/^\d+$/.test(pincode)) {
+      showToast('Please provide a valid 6-digit Indian PIN code.', 'error');
       return;
     }
 
-    const order = createOrder(address, paymentMethod);
-    if (order) {
+    setIsSubmitting(true);
+
+    const customerAddress: ShippingAddress = {
+      fullName,
+      mobile,
+      email,
+      addressLine,
+      city,
+      state,
+      pincode,
+      country: 'India',
+      deliveryDate,
+      deliveryTimeSlot: deliverySlot,
+      messageCard
+    };
+
+    setTimeout(() => {
+      const newOrder = placeOrder(
+        customerAddress,
+        cart,
+        subtotal,
+        0,
+        shippingFee,
+        grandTotal,
+        paymentMethod
+      );
+
       // Trigger celebration confetti
       try {
-        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
       } catch (err) {
-        console.log('Confetti effect');
+        // ignore if not supported
       }
 
-      navigate(`/order-confirmation/${order.orderId}`);
-    }
+      clearCart();
+      setIsSubmitting(false);
+      showToast('Your order has been placed successfully in Demo Mode! 🎉', 'success');
+      setLocation(`/order-confirmation/${newOrder.orderId}`);
+    }, 900);
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-24">
-      
-      {/* Header & Test Mode Badge */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-gray-200 pb-4 gap-2">
-        <div>
-          <h1 className="font-serif font-bold text-2xl sm:text-3xl text-giftoria-wine-900">
-            Checkout &amp; Customization Review
-          </h1>
-          <p className="text-xs text-gray-500">Please provide delivery details and confirm your custom order</p>
-        </div>
-
-        <div className="bg-amber-100 text-amber-900 text-xs font-bold px-3 py-1.5 rounded-xl border border-amber-300 flex items-center gap-1.5">
-          <ShieldCheck className="w-4 h-4 text-amber-700" />
-          <span>TEST / DEV MODE PAYMENT</span>
-        </div>
-      </div>
-
-      <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <div className="bg-[#F8FCFF] min-h-screen py-8 text-slate-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Left Column: Shipping Address & Payment Selection */}
-        <div className="lg:col-span-7 space-y-6">
+        {/* Page Title */}
+        <div className="mb-8">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            Checkout & Delivery Details
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Complete the delivery address and choose your convenient surprise time slot
+          </p>
+        </div>
+
+        {/* Demo Mode Notice Banner */}
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+          <div>
+            <strong>Demonstration Checkout Mode:</strong> No real money or card details will be charged. This completes a simulation flow matching FNP's gifting store standards.
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmitOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* Shipping Form Card */}
-          <div className="bg-white rounded-3xl p-6 border border-giftoria-wine-800/10 shadow-sm space-y-4">
-            <h2 className="font-serif font-bold text-lg text-giftoria-wine-900 flex items-center gap-2">
-              <Truck className="w-5 h-5 text-giftoria-wine-800" />
-              <span>1. Shipping &amp; Delivery Address</span>
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="sm:col-span-2 space-y-1">
-                <label className="block font-bold text-gray-700">Full Name *</label>
-                <input
-                  type="text"
-                  placeholder="John Doe"
-                  value={address.fullName}
-                  onChange={(e) => setAddress({ ...address, fullName: e.target.value })}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-xl p-3 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-giftoria-wine-800"
-                />
-                {formErrors.fullName && <p className="text-rose-600 text-[11px]">{formErrors.fullName}</p>}
+          {/* Left Form: Delivery Address & Time Slot */}
+          <div className="lg:col-span-8 space-y-6">
+            
+            {/* Step 1: Recipient Information */}
+            <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-sky-100">
+                <MapPin className="w-5 h-5 text-sky-500" />
+                <h3 className="font-bold text-slate-900 text-base">
+                  1. Delivery Address & Recipient
+                </h3>
               </div>
 
-              <div className="space-y-1">
-                <label className="block font-bold text-gray-700">Mobile Number *</label>
-                <input
-                  type="tel"
-                  placeholder="9876543210"
-                  value={address.mobile}
-                  onChange={(e) => setAddress({ ...address, mobile: e.target.value })}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-xl p-3 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-giftoria-wine-800"
-                />
-                {formErrors.mobile && <p className="text-rose-600 text-[11px]">{formErrors.mobile}</p>}
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Recipient / Customer Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Rahul Sharma"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl text-xs focus:outline-none focus:border-sky-500 text-slate-800 font-medium"
+                  />
+                </div>
 
-              <div className="space-y-1">
-                <label className="block font-bold text-gray-700">Email Address *</label>
-                <input
-                  type="email"
-                  placeholder="john@example.com"
-                  value={address.email}
-                  onChange={(e) => setAddress({ ...address, email: e.target.value })}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-xl p-3 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-giftoria-wine-800"
-                />
-                {formErrors.email && <p className="text-rose-600 text-[11px]">{formErrors.email}</p>}
-              </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Recipient Mobile Number *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    placeholder="10-digit mobile number"
+                    value={mobile}
+                    onChange={(e) => setMobile(e.target.value.replace(/\D/g, ''))}
+                    className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl text-xs focus:outline-none focus:border-sky-500 text-slate-800 font-medium"
+                  />
+                </div>
 
-              <div className="sm:col-span-2 space-y-1">
-                <label className="block font-bold text-gray-700">Street Address &amp; Landmark *</label>
-                <input
-                  type="text"
-                  placeholder="House / Flat No, Street, Landmark"
-                  value={address.addressLine}
-                  onChange={(e) => setAddress({ ...address, addressLine: e.target.value })}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-xl p-3 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-giftoria-wine-800"
-                />
-                {formErrors.addressLine && <p className="text-rose-600 text-[11px]">{formErrors.addressLine}</p>}
-              </div>
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Customer Email Address (for confirmation invoice) *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl text-xs focus:outline-none focus:border-sky-500 text-slate-800 font-medium"
+                  />
+                </div>
 
-              <div className="space-y-1">
-                <label className="block font-bold text-gray-700">City *</label>
-                <input
-                  type="text"
-                  placeholder="Mumbai"
-                  value={address.city}
-                  onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-xl p-3 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-giftoria-wine-800"
-                />
-                {formErrors.city && <p className="text-rose-600 text-[11px]">{formErrors.city}</p>}
-              </div>
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Flat, House no., Building, Street Address *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Flat 402, Sunshine Towers, MG Road"
+                    value={addressLine}
+                    onChange={(e) => setAddressLine(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl text-xs focus:outline-none focus:border-sky-500 text-slate-800 font-medium"
+                  />
+                </div>
 
-              <div className="space-y-1">
-                <label className="block font-bold text-gray-700">State *</label>
-                <input
-                  type="text"
-                  value={address.state}
-                  onChange={(e) => setAddress({ ...address, state: e.target.value })}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-xl p-3 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-giftoria-wine-800"
-                />
-              </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    City *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Mumbai, Bengaluru, Delhi"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl text-xs focus:outline-none focus:border-sky-500 text-slate-800 font-medium"
+                  />
+                </div>
 
-              <div className="space-y-1">
-                <label className="block font-bold text-gray-700">Pincode *</label>
-                <input
-                  type="text"
-                  placeholder="400001"
-                  value={address.pincode}
-                  onChange={(e) => setAddress({ ...address, pincode: e.target.value })}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-xl p-3 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-giftoria-wine-800"
-                />
-                {formErrors.pincode && <p className="text-rose-600 text-[11px]">{formErrors.pincode}</p>}
-              </div>
-
-              <div className="space-y-1">
-                <label className="block font-bold text-gray-700">Country</label>
-                <input
-                  type="text"
-                  disabled
-                  value={address.country}
-                  className="w-full bg-gray-100 border border-gray-200 rounded-xl p-3 text-xs text-gray-500 font-bold"
-                />
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    PIN Code (6 digits) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    placeholder="e.g. 400001"
+                    value={pincode}
+                    onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
+                    className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl text-xs focus:outline-none focus:border-sky-500 text-slate-800 font-semibold tracking-wider"
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Payment Architecture Selection */}
-          <div className="bg-white rounded-3xl p-6 border border-giftoria-wine-800/10 shadow-sm space-y-4">
-            <h2 className="font-serif font-bold text-lg text-giftoria-wine-900 flex items-center gap-2">
-              <Lock className="w-5 h-5 text-giftoria-wine-800" />
-              <span>2. Select Payment Method</span>
-            </h2>
+            {/* Step 2: Delivery Date & Slot Selection */}
+            <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-sky-100">
+                <Clock className="w-5 h-5 text-sky-500" />
+                <h3 className="font-bold text-slate-900 text-base">
+                  2. Delivery Schedule & Slot Selection
+                </h3>
+              </div>
 
-            <div className="space-y-2 text-xs">
-              <label className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all ${paymentMethod === 'upi' ? 'border-giftoria-wine-800 bg-giftoria-wine-50' : 'border-gray-200 bg-white'}`}>
-                <div className="flex items-center gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Preferred Delivery Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={deliveryDate}
+                    onChange={(e) => setDeliveryDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl text-xs focus:outline-none focus:border-sky-500 text-slate-800 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Time Slot *
+                  </label>
+                  <select
+                    value={deliverySlot}
+                    onChange={(e) => setDeliverySlot(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl text-xs focus:outline-none focus:border-sky-500 text-slate-800 font-medium"
+                  >
+                    <option value="Standard Daytime (9:00 AM - 6:00 PM)">Standard Daytime (9:00 AM - 6:00 PM)</option>
+                    <option value="Morning Surprise (7:00 AM - 9:00 AM)">Morning Surprise (7:00 AM - 9:00 AM)</option>
+                    <option value="Evening Slot (5:00 PM - 9:00 PM)">Evening Slot (5:00 PM - 9:00 PM)</option>
+                    <option value="Midnight Delivery (11:30 PM - 12:30 AM)">Midnight Surprise (11:30 PM - 12:30 AM)</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Complimentary Message for Gift Greeting Card
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Wishing you a magical day full of happiness, sweet moments and cherished memories!"
+                    value={messageCard}
+                    onChange={(e) => setMessageCard(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl text-xs focus:outline-none focus:border-sky-500 text-slate-800 resize-none font-medium"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Step 3: Payment Options (Demo Simulation) */}
+            <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-sky-100">
+                <CreditCard className="w-5 h-5 text-sky-500" />
+                <h3 className="font-bold text-slate-900 text-base">
+                  3. Payment Method (Demo Mode)
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                  paymentMethod === 'upi' ? 'border-sky-500 bg-sky-50/50 text-sky-800 font-bold' : 'border-sky-100 bg-white text-slate-700'
+                }`}>
                   <input
                     type="radio"
                     name="payment"
                     value="upi"
                     checked={paymentMethod === 'upi'}
                     onChange={() => setPaymentMethod('upi')}
-                    className="text-giftoria-wine-800 focus:ring-giftoria-wine-800"
+                    className="sr-only"
                   />
-                  <div>
-                    <div className="font-bold text-giftoria-wine-900">UPI Instant Payment (GPay, PhonePe, Paytm)</div>
-                    <div className="text-[11px] text-gray-500">Instant test verification</div>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">Fastest</span>
-              </label>
+                  <span className="text-xs font-bold mb-1">📱 UPI / QR Code</span>
+                  <span className="text-[10px] text-slate-500">Google Pay, PhonePe, Paytm</span>
+                </label>
 
-              <label className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all ${paymentMethod === 'card' ? 'border-giftoria-wine-800 bg-giftoria-wine-50' : 'border-gray-200 bg-white'}`}>
-                <div className="flex items-center gap-3">
+                <label className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                  paymentMethod === 'card' ? 'border-sky-500 bg-sky-50/50 text-sky-800 font-bold' : 'border-sky-100 bg-white text-slate-700'
+                }`}>
                   <input
                     type="radio"
                     name="payment"
                     value="card"
                     checked={paymentMethod === 'card'}
                     onChange={() => setPaymentMethod('card')}
-                    className="text-giftoria-wine-800 focus:ring-giftoria-wine-800"
+                    className="sr-only"
                   />
-                  <div>
-                    <div className="font-bold text-giftoria-wine-900">Credit / Debit Card</div>
-                    <div className="text-[11px] text-gray-500">Visa, MasterCard, RuPay</div>
-                  </div>
-                </div>
-              </label>
+                  <span className="text-xs font-bold mb-1">💳 Credit / Debit Card</span>
+                  <span className="text-[10px] text-slate-500">Visa, Mastercard, RuPay</span>
+                </label>
 
-              <label className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all ${paymentMethod === 'cod' ? 'border-giftoria-wine-800 bg-giftoria-wine-50' : 'border-gray-200 bg-white'}`}>
-                <div className="flex items-center gap-3">
+                <label className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                  paymentMethod === 'cod' ? 'border-sky-500 bg-sky-50/50 text-sky-800 font-bold' : 'border-sky-100 bg-white text-slate-700'
+                }`}>
                   <input
                     type="radio"
                     name="payment"
                     value="cod"
                     checked={paymentMethod === 'cod'}
                     onChange={() => setPaymentMethod('cod')}
-                    className="text-giftoria-wine-800 focus:ring-giftoria-wine-800"
+                    className="sr-only"
                   />
-                  <div>
-                    <div className="font-bold text-giftoria-wine-900">Cash on Delivery (COD)</div>
-                    <div className="text-[11px] text-gray-500">Pay cash upon item arrival</div>
-                  </div>
-                </div>
-              </label>
+                  <span className="text-xs font-bold mb-1">💵 Cash on Delivery</span>
+                  <span className="text-[10px] text-slate-500">Pay upon delivery</span>
+                </label>
+              </div>
             </div>
+
           </div>
 
-        </div>
+          {/* Right Summary Sidebar */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4 sticky top-24">
+              <h3 className="font-bold text-slate-900 text-base pb-3 border-b border-sky-100">
+                Order Summary ({cart.length} items)
+              </h3>
 
-        {/* Right Column: Customization Review & Final Order Summary */}
-        <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-giftoria-wine-800/10 shadow-sm space-y-6">
-          <h2 className="font-serif font-bold text-lg text-giftoria-wine-900 border-b pb-3">
-            3. Review Customized Items
-          </h2>
+              {/* Items mini list */}
+              <div className="max-h-48 overflow-y-auto space-y-2 pr-1 no-scrollbar">
+                {cart.map((item) => (
+                  <div key={item.cartItemId} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 truncate pr-2">
+                      <img
+                        src={item.product.thumbnail || item.product.images[0]}
+                        alt={item.product.name}
+                        className="w-10 h-10 rounded-lg object-cover bg-sky-50"
+                      />
+                      <div className="truncate">
+                        <span className="font-semibold text-slate-800 block truncate">{item.product.name}</span>
+                        <span className="text-slate-500 text-[10px]">Qty: {item.quantity}</span>
+                      </div>
+                    </div>
+                    <span className="font-bold text-slate-900 shrink-0">
+                      ₹{(item.product.price * item.quantity).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                ))}
+              </div>
 
-          <div className="space-y-4 max-h-96 overflow-y-auto pr-1">
-            {cart.map((item) => (
-              <div key={item.cartItemId} className="flex gap-3 bg-gray-50 p-3 rounded-2xl border border-gray-100 text-xs">
-                <img src={item.product.thumbnail} alt="" className="w-14 h-16 object-cover rounded-xl shrink-0" />
-                <div className="space-y-1">
-                  <div className="font-bold text-giftoria-wine-900 leading-snug">{item.product.name} (×{item.quantity})</div>
-                  <div className="font-bold text-gray-700">₹{item.product.price * item.quantity}</div>
-                  
-                  {/* Customization Details preview */}
-                  {item.customization.customMessage && (
-                    <div className="text-[10px] text-giftoria-wine-900 bg-giftoria-cream-100 p-1.5 rounded-lg">
-                      <strong>Text:</strong> "{item.customization.customMessage}"
-                    </div>
-                  )}
-                  {item.customization.uploadedFileName && (
-                    <div className="text-[10px] text-emerald-800 bg-emerald-50 p-1 rounded flex items-center gap-1">
-                      <FileText className="w-3 h-3" />
-                      <span>{item.customization.uploadedFileName}</span>
-                    </div>
-                  )}
+              {/* Price Details */}
+              <div className="pt-3 border-t border-sky-100 space-y-2 text-xs text-slate-600">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span className="font-bold text-slate-900">₹{subtotal.toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Delivery Charge</span>
+                  <span className="font-bold text-slate-900">
+                    {shippingFee === 0 ? <span className="text-emerald-600">FREE</span> : `₹${shippingFee}`}
+                  </span>
+                </div>
+                <div className="pt-3 border-t border-sky-100 flex justify-between items-baseline text-sm">
+                  <span className="font-bold text-slate-900">Total Payable</span>
+                  <span className="font-black text-xl text-sky-600">
+                    ₹{grandTotal.toLocaleString('en-IN')}
+                  </span>
                 </div>
               </div>
-            ))}
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-bold py-3.5 px-6 rounded-2xl shadow-md shadow-sky-200 transition-all flex items-center justify-center gap-2 text-sm active:scale-95"
+              >
+                {isSubmitting ? 'Placing Demo Order...' : 'Confirm & Place Order'}
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <div className="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1">
+                <Lock className="w-3.5 h-3.5 text-sky-500" />
+                <span>Encrypted Demo Order Confirmation</span>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-2 text-xs border-t pt-4">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span className="font-bold">₹{subtotal}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Shipping Fee</span>
-              <span className="font-bold">{shippingFee === 0 ? 'FREE' : `₹${shippingFee}`}</span>
-            </div>
-            <div className="flex justify-between text-base font-bold text-giftoria-wine-900 pt-2 border-t">
-              <span>Grand Total</span>
-              <span>₹{grandTotal}</span>
-            </div>
-          </div>
+        </form>
 
-          <button
-            type="submit"
-            className="w-full inline-flex items-center justify-center gap-2 bg-giftoria-gold-500 hover:bg-giftoria-gold-600 text-giftoria-charcoal-900 font-extrabold text-sm py-4 px-6 rounded-2xl shadow-gold transition-all"
-          >
-            <CheckCircle2 className="w-5 h-5" />
-            <span>Place Order Now</span>
-          </button>
-        </div>
-
-      </form>
+      </div>
     </div>
   );
 };

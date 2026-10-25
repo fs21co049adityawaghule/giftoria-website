@@ -2,72 +2,73 @@ import React, { useState } from 'react';
 import { ChevronDown, HelpCircle } from 'lucide-react';
 
 export const FAQPage: React.FC = () => {
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
-
   const faqs = [
     {
-      q: 'What is the maximum file size for photo or design uploads?',
-      a: 'The file upload limit is strictly 1 MB per customized product. Allowed file formats include JPG, JPEG, PNG, WEBP, and PDF. If your file exceeds 1 MB, please compress it before uploading.',
+      q: "Can I get same-day delivery for flowers and cakes?",
+      a: "Yes! SkyGift offers 2-hour express delivery and same-day delivery across 450+ Indian cities for orders placed before 5:00 PM."
     },
     {
-      q: 'Can I add different custom text or photos to multiple items of the same product?',
-      a: 'Yes! Every customized item in your cart stores its unique message and uploaded file reference. If you add two coffee mugs with different names, they will appear as separate cart items.',
+      q: "How does midnight delivery work?",
+      a: "Our midnight delivery fleet delivers surprise cakes and flowers directly between 11:30 PM and 12:30 AM right on the celebration eve."
     },
     {
-      q: 'How long does 3D printing and custom order processing take?',
-      a: 'Customized products dispatches within 24 to 48 working hours. Precision 3D printing (such as Lithophane Moon Lamps & Idols) takes approximately 24 hours for fine layer manufacturing.',
+      q: "Can I customize the cake flavor, message, or weight?",
+      a: "Absolutely. On each cake product page, you can choose cake weight (500g, 1kg, 2kg) and type your personalized greeting card message during checkout."
     },
     {
-      q: 'What file resolution is recommended for photo frames?',
-      a: 'For best results on 4x4, 4x6, and A4 photo frames, we recommend uploading sharp, high-resolution original digital photos without heavy blur.',
+      q: "How do I check if my pincode is serviceable?",
+      a: "You can enter your 6-digit PIN code in the header or on any product page. It will instantly verify delivery availability and show exact delivery time slots."
     },
     {
-      q: 'What payment methods are supported on GIFTORIA?',
-      a: 'We support UPI (GPay, PhonePe, Paytm), Credit/Debit Cards, Net Banking, and Cash on Delivery (COD). In test mode, all orders complete instantly.',
+      q: "Are the flowers delivered fresh?",
+      a: "Yes, we source blooms directly from verified local growers every morning. Each bouquet is hand-tied with moisture wraps to guarantee farm-fresh presentation."
     },
     {
-      q: 'How can I contact customer support regarding my custom order?',
-      a: 'You can chat directly with our studio on WhatsApp (+91 83568 29605) or email us at support@giftoria.in.',
-    },
+      q: "What payment options are available?",
+      a: "In this demo mode, you can test UPI, Card, and Cash on Delivery without being charged real money."
+    }
   ];
 
-  return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 pb-24">
-      <div className="text-center max-w-xl mx-auto space-y-2">
-        <div className="w-12 h-12 rounded-full bg-giftoria-wine-50 text-giftoria-wine-800 flex items-center justify-center mx-auto">
-          <HelpCircle className="w-6 h-6" />
-        </div>
-        <h1 className="font-serif font-bold text-3xl sm:text-4xl text-giftoria-wine-900">
-          Frequently Asked Questions
-        </h1>
-        <p className="text-xs sm:text-sm text-gray-600">
-          Everything you need to know about custom ordering, 1 MB file upload rules, 3D printing, and delivery.
-        </p>
-      </div>
+  const [openIdx, setOpenIdx] = useState<number | null>(0);
 
-      <div className="space-y-3">
-        {faqs.map((faq, idx) => {
-          const isOpen = openIndex === idx;
-          return (
-            <div
-              key={idx}
-              className="bg-white rounded-2xl border border-giftoria-wine-800/10 overflow-hidden shadow-sm transition-all"
+  return (
+    <div className="bg-[#F8FCFF] min-h-screen py-12 text-slate-800">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        
+        <div className="text-center space-y-3">
+          <span className="text-xs font-bold uppercase tracking-wider text-sky-600 bg-sky-50 px-3 py-1 rounded-full border border-sky-100">
+            Got Questions?
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900">
+            Frequently Asked Questions
+          </h1>
+          <p className="text-xs text-slate-500">
+            Find quick answers about delivery timings, customization, and freshness
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {faqs.map((faq, idx) => (
+            <div 
+              key={idx} 
+              className="bg-white rounded-2xl border border-sky-100 shadow-xs overflow-hidden"
             >
               <button
-                onClick={() => setOpenIndex(isOpen ? null : idx)}
-                className="w-full flex items-center justify-between p-4 sm:p-5 text-left font-serif font-bold text-sm sm:text-base text-giftoria-wine-900 hover:text-giftoria-wine-700 transition-colors"
+                onClick={() => setOpenIdx(openIdx === idx ? null : idx)}
+                className="w-full p-4 sm:p-5 text-left flex items-center justify-between font-bold text-slate-800 text-sm hover:text-sky-600 transition-colors"
               >
                 <span>{faq.q}</span>
-                <ChevronDown className={`w-4 h-4 text-giftoria-wine-800 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 text-sky-500 transition-transform ${openIdx === idx ? 'rotate-180' : ''}`} />
               </button>
-              {isOpen && (
-                <div className="px-4 pb-5 sm:px-5 text-xs text-gray-600 leading-relaxed border-t border-gray-100 pt-3">
+              {openIdx === idx && (
+                <div className="px-5 pb-5 text-xs text-slate-600 leading-relaxed border-t border-sky-50 pt-3">
                   {faq.a}
                 </div>
               )}
             </div>
-          );
-        })}
+          ))}
+        </div>
+
       </div>
     </div>
   );

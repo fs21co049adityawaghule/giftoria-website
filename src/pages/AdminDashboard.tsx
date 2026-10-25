@@ -30,6 +30,9 @@ export const AdminDashboard: React.FC = () => {
     bestSeller: false,
     newProduct: true,
     tags: ['custom gift'],
+    rating: 4.8,
+    reviewsCount: 12,
+    deliveryLabel: 'Earliest Delivery: Today',
   });
 
   const handleCreateProduct = (e: React.FormEvent) => {
