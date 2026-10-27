@@ -1,15 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
-import { Search, Sparkles, ArrowRight, Frown } from 'lucide-react';
-import { INITIAL_PRODUCTS, CATEGORIES_LIST } from '../data/products';
+import { Search, Sparkles, ArrowRight, Frown, X } from 'lucide-react';
+import { INITIAL_PRODUCTS } from '../data/products';
 import { ProductCard } from '../components/common/ProductCard';
+import { searchProducts } from '../utils/searchUtils';
 
 export const SearchPage: React.FC = () => {
   const [location, setLocation] = useLocation();
 
   const getQueryFromUrl = () => {
-    const searchPart = window.location.search;
-    return new URLSearchParams(searchPart).get('q') || '';
+    try {
+      const searchPart = window.location.search;
+      return new URLSearchParams(searchPart).get('q') || '';
+    } catch {
+      return '';
+    }
   };
 
   const [query, setQuery] = useState(getQueryFromUrl);
@@ -20,14 +25,7 @@ export const SearchPage: React.FC = () => {
 
   const searchResults = useMemo(() => {
     if (!query.trim()) return [];
-    const clean = query.toLowerCase().trim();
-    return INITIAL_PRODUCTS.filter((product) => {
-      const matchName = product.name.toLowerCase().includes(clean);
-      const matchCat = product.category.toLowerCase().includes(clean);
-      const matchTags = product.tags.some((t) => t.toLowerCase().includes(clean));
-      const matchDesc = product.description.toLowerCase().includes(clean);
-      return matchName || matchCat || matchTags || matchDesc;
-    });
+    return searchProducts(INITIAL_PRODUCTS, query);
   }, [query]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -44,10 +42,10 @@ export const SearchPage: React.FC = () => {
         {/* Search Input Box */}
         <div className="max-w-2xl mx-auto mb-10 text-center space-y-4">
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900">
-            Search SkyGift Store
+            Search GIFTORIA
           </h1>
           <p className="text-xs text-slate-500">
-            Find fresh flowers, cakes, indoor plants, personalized photo keepsakes & gift hampers
+            Find customized mugs, 3D arts, keychains, forever blooms, gift hampers & jewellery
           </p>
 
           <form onSubmit={handleSearchSubmit} className="relative mt-4">
@@ -55,11 +53,22 @@ export const SearchPage: React.FC = () => {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by gift type, flower, cake flavour, occasion..."
+              placeholder="Search by keywords, products, materials, or occasions..."
               className="w-full bg-white border border-sky-200 focus:border-sky-500 rounded-2xl py-3.5 pl-12 pr-28 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-sky-100 shadow-sm"
               autoFocus
             />
             <Search className="w-5 h-5 text-sky-500 absolute left-4 top-1/2 -translate-y-1/2" />
+            
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                className="absolute right-24 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+
             <button
               type="submit"
               className="absolute right-2 top-1/2 -translate-y-1/2 bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all shadow-sm"
@@ -68,10 +77,20 @@ export const SearchPage: React.FC = () => {
             </button>
           </form>
 
-          {/* Quick search suggestions */}
+          {/* Synonym keyword quick pills */}
           <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs">
-            <span className="text-slate-400 text-[11px]">Popular:</span>
-            {['Roses', 'Truffle Cake', 'Money Plant', 'Personalized Mug', 'Hampers', 'Birthday'].map((tag) => (
+            <span className="text-slate-400 text-[11px]">Popular searches:</span>
+            {[
+              'Magic Mug', 
+              'Wood Keychain', 
+              'Acrylic Keychain', 
+              'Phone Cover', 
+              'Ganpati', 
+              'Artificial Flower', 
+              '3D Printed', 
+              'Necklace',
+              'Birthday Present'
+            ].map((tag) => (
               <button
                 key={tag}
                 onClick={() => {
@@ -90,9 +109,9 @@ export const SearchPage: React.FC = () => {
         {query.trim() === '' ? (
           <div className="text-center py-12 bg-white rounded-3xl border border-sky-100 p-8 max-w-xl mx-auto shadow-xs">
             <Sparkles className="w-10 h-10 text-sky-500 mx-auto mb-3" />
-            <h3 className="font-bold text-slate-800 text-base">Start searching for gifts</h3>
+            <h3 className="font-bold text-slate-800 text-base">Type a search term above</h3>
             <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-              Type any keyword like "Red roses", "Chocolate cake", "Anniversary plaque" or "Gift basket" above to see matching products.
+              Search by product name, category, or similar keywords like "heat mug", "ganesha", "fake flower", or "bracelet".
             </p>
           </div>
         ) : searchResults.length === 0 ? (
@@ -101,10 +120,10 @@ export const SearchPage: React.FC = () => {
               <Frown className="w-8 h-8" />
             </div>
             <h3 className="text-lg font-bold text-slate-900">
-              No gifts found for "{query}"
+              No matches found for "{query}"
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              We couldn't find exact matches. Try searching for broader terms like <strong>Roses</strong>, <strong>Cakes</strong>, <strong>Plants</strong>, or browse our popular categories below.
+              We couldn't find exact matches for your search. Try searching with broader terms like <strong>mug</strong>, <strong>keychain</strong>, <strong>3D</strong>, <strong>blooms</strong>, or explore our curated categories below.
             </p>
             <div className="pt-2">
               <Link
@@ -121,7 +140,7 @@ export const SearchPage: React.FC = () => {
               <h2 className="text-lg font-bold text-slate-900">
                 Found {searchResults.length} {searchResults.length === 1 ? 'gift' : 'gifts'} for "{query}"
               </h2>
-              <span className="text-xs text-slate-500">Express delivery available</span>
+              <span className="text-xs text-slate-500">Serviceable across Maharashtra</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

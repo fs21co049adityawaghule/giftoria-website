@@ -6,21 +6,21 @@ import {
   Star, 
   Truck, 
   ShieldCheck, 
-  Calendar, 
   Clock, 
   MapPin, 
   CheckCircle2, 
-  Share2, 
   ChevronRight, 
   Upload, 
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  AlertCircle
 } from 'lucide-react';
 import { INITIAL_PRODUCTS } from '../data/products';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
 import { ProductCard } from '../components/common/ProductCard';
+import { validateMaharashtraPincode } from '../utils/pincodeUtils';
 
 export const ProductDetailPage: React.FC = () => {
   const [, params] = useRoute('/product/:slug');
@@ -42,10 +42,10 @@ export const ProductDetailPage: React.FC = () => {
   const [recipientName, setRecipientName] = useState('');
   const [uploadedFileName, setUploadedFileName] = useState('');
 
-  // Pincode checker state
+  // Maharashtra Pincode checker state
   const [pincode, setPincode] = useState('400001');
-  const [isPincodeChecked, setIsPincodeChecked] = useState(true);
-  const [selectedSlot, setSelectedSlot] = useState('Standard Delivery (Free)');
+  const [pincodeResult, setPincodeResult] = useState(() => validateMaharashtraPincode('400001'));
+  const [selectedSlot, setSelectedSlot] = useState('Standard Daytime Dispatch (9:00 AM - 6:00 PM)');
 
   // Related products
   const relatedProducts = useMemo(() => {
@@ -54,11 +54,12 @@ export const ProductDetailPage: React.FC = () => {
 
   const handlePincodeCheck = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pincode.length === 6 && /^\d+$/.test(pincode)) {
-      setIsPincodeChecked(true);
-      showToast(`Pincode ${pincode} is serviceable for Express Delivery!`, 'success');
+    const result = validateMaharashtraPincode(pincode);
+    setPincodeResult(result);
+    if (result.isValid && result.isMaharashtra) {
+      showToast(result.message, 'success');
     } else {
-      showToast('Please enter a valid 6-digit Indian PIN code.', 'error');
+      showToast(result.message, 'error');
     }
   };
 
@@ -157,18 +158,18 @@ export const ProductDetailPage: React.FC = () => {
               <div className="grid grid-cols-3 gap-3 pt-3 border-t border-sky-50 text-center">
                 <div className="p-2.5 rounded-xl bg-sky-50/60 border border-sky-100 text-slate-700">
                   <ShieldCheck className="w-4 h-4 text-sky-500 mx-auto mb-1" />
-                  <span className="text-[11px] font-bold block">100% Genuine</span>
-                  <span className="text-[9px] text-slate-500">Premium Quality</span>
+                  <span className="text-[11px] font-bold block">100% Handcrafted</span>
+                  <span className="text-[9px] text-slate-500">Quality Assured</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-sky-50/60 border border-sky-100 text-slate-700">
                   <Truck className="w-4 h-4 text-sky-500 mx-auto mb-1" />
-                  <span className="text-[11px] font-bold block">Safe Delivery</span>
-                  <span className="text-[9px] text-slate-500">Contactless & Sanitized</span>
+                  <span className="text-[11px] font-bold block">Safe Packaging</span>
+                  <span className="text-[9px] text-slate-500">Damage-Proof Transit</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-sky-50/60 border border-sky-100 text-slate-700">
                   <Clock className="w-4 h-4 text-sky-500 mx-auto mb-1" />
-                  <span className="text-[11px] font-bold block">Timed Slots</span>
-                  <span className="text-[9px] text-slate-500">Fixed & Midnight</span>
+                  <span className="text-[11px] font-bold block">Next-Day Dispatch</span>
+                  <span className="text-[9px] text-slate-500">Except Sundays</span>
                 </div>
               </div>
             </div>
@@ -190,7 +191,7 @@ export const ProductDetailPage: React.FC = () => {
                     <span>{product.rating.toFixed(1)}</span>
                     <Star className="w-3.5 h-3.5 fill-emerald-600 text-emerald-600" />
                   </div>
-                  <span className="text-xs text-slate-500">{product.reviewsCount} verified customer reviews</span>
+                  <span className="text-xs text-slate-500">{product.reviewsCount} customer reviews</span>
                 </div>
               </div>
 
@@ -212,36 +213,14 @@ export const ProductDetailPage: React.FC = () => {
                 <span className="text-xs text-slate-600 ml-auto font-medium">Inclusive of all taxes</span>
               </div>
 
-              {/* Weight Selector for Cakes if available */}
-              {product.availableWeights && (
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 block">Select Cake Weight:</label>
-                  <div className="flex gap-2">
-                    {product.availableWeights.map((weight) => (
-                      <button
-                        key={weight}
-                        onClick={() => setSelectedWeight(weight)}
-                        className={`px-4 py-2 text-xs font-bold rounded-xl border transition-all ${
-                          selectedWeight === weight
-                            ? 'bg-sky-500 text-white border-sky-500 shadow-xs'
-                            : 'bg-white text-slate-700 border-sky-200 hover:bg-sky-50'
-                        }`}
-                      >
-                        {weight}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Pincode Availability Checker */}
+              {/* Pincode Availability Checker for Maharashtra */}
               <div className="p-4 rounded-2xl bg-white border border-sky-200 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
                     <MapPin className="w-4 h-4 text-sky-500" />
-                    <span>Check Delivery Availability</span>
+                    <span>Check Maharashtra Delivery Serviceability</span>
                   </div>
-                  <span className="text-[11px] text-slate-600">Sample Indian PIN Code</span>
+                  <span className="text-[11px] text-slate-500">6-Digit PIN Code</span>
                 </div>
 
                 <form onSubmit={handlePincodeCheck} className="flex gap-2">
@@ -249,31 +228,36 @@ export const ProductDetailPage: React.FC = () => {
                     type="text"
                     maxLength={6}
                     value={pincode}
-                    onChange={(e) => {
-                      setPincode(e.target.value.replace(/\D/g, ''));
-                      setIsPincodeChecked(false);
-                    }}
-                    placeholder="Enter 6-digit Pincode"
+                    onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Enter Maharashtra PIN code"
                     className="flex-1 px-3.5 py-2 text-xs font-semibold tracking-wider text-slate-800 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500"
                   />
                   <button
                     type="submit"
-                    className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+                    className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-xs"
                   >
                     Check
                   </button>
                 </form>
 
-                {isPincodeChecked && (
-                  <div className="text-xs space-y-1.5 pt-1 text-slate-600">
-                    <div className="flex items-center gap-1.5 text-emerald-600 font-semibold">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <span>Delivery available to PIN {pincode}</span>
-                    </div>
-                    <div className="text-[11px] text-slate-500 pl-5">
-                      • Earliest Available Slot: <strong>Today (2:00 PM - 5:00 PM)</strong><br />
-                      • Midnight surprise slot: Available between 11:30 PM - 12:30 AM
-                    </div>
+                {pincodeResult && (
+                  <div className="text-xs space-y-1.5 pt-1">
+                    {pincodeResult.isMaharashtra ? (
+                      <div className="flex items-start gap-1.5 text-emerald-700 font-semibold bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span>{pincodeResult.message}</span>
+                          <p className="text-[11px] text-slate-500 font-normal mt-0.5">
+                            Orders are dispatched next day (except Sundays) between 9:00 AM and 6:00 PM.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-1.5 text-rose-700 font-semibold bg-rose-50 p-2.5 rounded-xl border border-rose-200">
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                        <span>{pincodeResult.message}</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -292,7 +276,7 @@ export const ProductDetailPage: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Happy Anniversary Rohit & Pooja"
+                      placeholder="e.g. Happy Birthday Rohit / Love Always"
                       value={recipientName}
                       onChange={(e) => setRecipientName(e.target.value)}
                       className="w-full bg-white px-3 py-2 text-xs border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500 text-slate-800"
@@ -381,10 +365,10 @@ export const ProductDetailPage: React.FC = () => {
 
               {/* Care Instructions / Gifting Tips */}
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
-                <h4 className="font-bold text-slate-800">Care & Gifting Instructions:</h4>
-                <p>• For Flowers: Trim stems diagonally and place in clean cold water daily.</p>
-                <p>• For Cakes: Keep refrigerated and consume within 24 hours of delivery.</p>
-                <p>• For Plants: Keep in bright, indirect sunlight and water moderately.</p>
+                <h4 className="font-bold text-slate-800">Care & Material Instructions:</h4>
+                <p>• <strong>Forever Blooms:</strong> Keep dry in indoor ambient conditions. Dust with a soft dry brush; do not water.</p>
+                <p>• <strong>Custom Mugs:</strong> Wash gently with a soft sponge. Do not use metal scrubbers on printed areas.</p>
+                <p>• <strong>3D Arts & Lithophanes:</strong> Fabricated from durable PLA; keep away from open flames or high direct heat.</p>
               </div>
 
             </div>

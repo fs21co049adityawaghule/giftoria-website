@@ -50,6 +50,8 @@ export const App: React.FC = () => {
                 <Switch>
                   <Route path="/" component={HomePage} />
                   <Route path="/products" component={ShopPage} />
+                  <Route path="/forever-blooms" component={ShopPage} />
+                  <Route path="/3d-arts" component={ShopPage} />
                   <Route path="/flowers" component={ShopPage} />
                   <Route path="/cakes" component={ShopPage} />
                   <Route path="/plants" component={ShopPage} />

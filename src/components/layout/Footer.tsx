@@ -5,16 +5,13 @@ import {
   Mail, 
   Phone, 
   MapPin, 
-  Clock, 
-  ShieldCheck, 
-  Truck, 
-  Headphones, 
-  Award,
   Send,
-  Heart
+  Heart,
+  MessageCircle
 } from 'lucide-react';
 import { businessConfig } from '../../config/businessConfig';
 import { useToast } from '../../context/ToastContext';
+import { CATEGORIES_LIST } from '../../data/products';
 
 export const Footer: React.FC = () => {
   const [newsletterEmail, setNewsletterEmail] = useState('');
@@ -23,7 +20,7 @@ export const Footer: React.FC = () => {
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
     if (newsletterEmail.trim() && newsletterEmail.includes('@')) {
-      showToast('Thank you for subscribing! You will receive exclusive gifting offers.', 'success');
+      showToast('Thank you for subscribing! You will receive exclusive gifting updates.', 'success');
       setNewsletterEmail('');
     } else {
       showToast('Please enter a valid email address.', 'error');
@@ -31,55 +28,11 @@ export const Footer: React.FC = () => {
   };
 
   return (
-    <footer className="bg-slate-900 text-slate-300 pt-14 pb-8 border-t border-sky-900/30">
-      {/* 4 Feature Badges */}
-      <div className="max-w-7xl mx-auto px-4 pb-12 border-b border-slate-800">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center md:text-left">
-          <div className="flex flex-col md:flex-row items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-400/20 flex items-center justify-center text-sky-400 shrink-0">
-              <Truck className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="font-semibold text-white text-sm">Express 2hr Delivery</h4>
-              <p className="text-xs text-slate-400">Available across 450+ cities</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-400/20 flex items-center justify-center text-sky-400 shrink-0">
-              <Award className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="font-semibold text-white text-sm">100% Freshness Guarantee</h4>
-              <p className="text-xs text-slate-400">Handpicked farm-fresh blooms</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-400/20 flex items-center justify-center text-sky-400 shrink-0">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="font-semibold text-white text-sm">100% Safe & Secure</h4>
-              <p className="text-xs text-slate-400">Verified payment processing</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-400/20 flex items-center justify-center text-sky-400 shrink-0">
-              <Headphones className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="font-semibold text-white text-sm">24/7 Dedicated Care</h4>
-              <p className="text-xs text-slate-400">Quick resolution & support</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <footer className="bg-slate-900 text-slate-300 pt-12 pb-8 border-t border-sky-900/30">
       {/* Main Footer Links & Content */}
-      <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
+          
           {/* Brand Col */}
           <div className="lg:col-span-2 space-y-4">
             <Link href="/" className="flex items-center gap-2">
@@ -87,11 +40,11 @@ export const Footer: React.FC = () => {
                 <Gift className="w-5 h-5 text-white" />
               </div>
               <span className="text-2xl font-black text-white tracking-tight">
-                Sky<span className="text-sky-400">Gift</span>
+                GIFTO<span className="text-sky-400">RIA</span>
               </span>
             </Link>
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
-              SkyGift is India's leading online gifting destination, delighting celebrations with handcrafted flower arrangements, freshly baked artisanal cakes, curated hampers, and personalized keepsakes.
+              GIFTORIA crafts customized gifts made with emotions — from bespoke personalized mugs and keychains to precision 3D-printed arts, forever blooms, luxury gift hampers, and timeless jewellery.
             </p>
 
             {/* Newsletter */}
@@ -118,42 +71,22 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Shop by Category (Section 8 requirement) */}
           <div className="space-y-3">
             <h5 className="text-sm font-bold text-white uppercase tracking-wider border-b border-slate-800 pb-2">
-              Popular Gifts
+              Shop by Category
             </h5>
             <ul className="space-y-2 text-xs">
-              <li>
-                <Link href="/products?category=Flowers" className="hover:text-sky-400 transition-colors">
-                  Fresh Flowers & Roses
-                </Link>
-              </li>
-              <li>
-                <Link href="/products?category=Cakes" className="hover:text-sky-400 transition-colors">
-                  Artisanal Cakes & Bakery
-                </Link>
-              </li>
-              <li>
-                <Link href="/products?category=Plants" className="hover:text-sky-400 transition-colors">
-                  Indoor & Lucky Plants
-                </Link>
-              </li>
-              <li>
-                <Link href="/products?category=Personalized+Gifts" className="hover:text-sky-400 transition-colors">
-                  Personalized Keepsakes
-                </Link>
-              </li>
-              <li>
-                <Link href="/products?category=Gift+Hampers" className="hover:text-sky-400 transition-colors">
-                  Luxury Gift Hampers
-                </Link>
-              </li>
-              <li>
-                <Link href="/products?category=Chocolates" className="hover:text-sky-400 transition-colors">
-                  Chocolates & Bouquets
-                </Link>
-              </li>
+              {CATEGORIES_LIST.map((cat) => (
+                <li key={cat.id}>
+                  <Link 
+                    href={`/products?category=${encodeURIComponent(cat.name)}`} 
+                    className="hover:text-sky-400 transition-colors"
+                  >
+                    {cat.name}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -191,15 +124,15 @@ export const Footer: React.FC = () => {
             </ul>
           </div>
 
-          {/* Legal & Company */}
+          {/* Company & Contact Details */}
           <div className="space-y-3">
             <h5 className="text-sm font-bold text-white uppercase tracking-wider border-b border-slate-800 pb-2">
-              Company
+              Contact & Studio
             </h5>
-            <ul className="space-y-2 text-xs">
+            <ul className="space-y-2.5 text-xs">
               <li>
                 <Link href="/about" className="hover:text-sky-400 transition-colors">
-                  About SkyGift
+                  About GIFTORIA
                 </Link>
               </li>
               <li>
@@ -219,23 +152,47 @@ export const Footer: React.FC = () => {
                 </div>
               </li>
               <li className="text-slate-400">
-                <div className="flex items-center gap-1.5">
+                <a 
+                  href={`tel:+91${businessConfig.rawPhone}`}
+                  className="flex items-center gap-1.5 hover:text-sky-400 transition-colors"
+                >
                   <Phone className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                  <span className="text-[11px]">{businessConfig.supportPhone}</span>
-                </div>
+                  <span className="text-[11px]">+91 {businessConfig.rawPhone}</span>
+                </a>
+              </li>
+              <li className="text-slate-400">
+                <a 
+                  href={businessConfig.whatsappUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 hover:text-emerald-400 transition-colors text-emerald-400"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span className="text-[11px]">WhatsApp: {businessConfig.rawPhone}</span>
+                </a>
+              </li>
+              <li className="text-slate-400">
+                <a 
+                  href={`mailto:${businessConfig.email}`}
+                  className="flex items-center gap-1.5 hover:text-sky-400 transition-colors"
+                >
+                  <Mail className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                  <span className="text-[11px]">{businessConfig.email}</span>
+                </a>
               </li>
             </ul>
           </div>
+
         </div>
       </div>
 
       {/* Bottom Bar & Copyright */}
       <div className="max-w-7xl mx-auto px-4 pt-8 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
         <div>
-          © {new Date().getFullYear()} SkyGift Online Services India Pvt. Ltd. All rights reserved.
+          © {new Date().getFullYear()} GIFTORIA. All rights reserved.
         </div>
         <div className="flex items-center gap-1 text-[11px] text-slate-400">
-          Crafted with <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500 inline" /> for unforgettable Indian celebrations
+          Crafted with <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500 inline" /> for special celebrations across Maharashtra
         </div>
         <div className="text-[11px] text-sky-400/80">
           {businessConfig.demoModeNotice}

@@ -15,7 +15,7 @@ export const PrivacyPage: React.FC = () => {
           <div className="space-y-2">
             <h3 className="font-bold text-slate-900 text-sm">1. Customer Privacy Commitment</h3>
             <p>
-              At SkyGift, we value the trust you place in us when sharing recipient addresses, celebratory greeting card messages, and personal memories for custom gifts.
+              At GIFTORIA, we value the trust you place in us when sharing recipient addresses, celebratory greeting card messages, and personal memories for custom gifts.
             </p>
           </div>
 

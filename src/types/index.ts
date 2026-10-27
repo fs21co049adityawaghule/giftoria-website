@@ -2,17 +2,14 @@ export type ServiceType = string;
 export type CustomizationType = string;
 
 export type ProductCategory = 
-  | 'Flowers'
-  | 'Cakes'
-  | 'Plants'
   | 'Personalized Gifts'
+  | '3D Arts'
+  | 'Forever Blooms'
   | 'Gift Hampers'
-  | 'Chocolates'
-  | 'Jewellery'
-  | 'Home & Living'
-  | 'Occasions'
   | 'Birthday Gifts'
-  | 'Anniversary Gifts';
+  | 'Anniversary Gifts'
+  | 'Jewellery'
+  | string;
 
 export interface ProductVariant {
   id: string;
@@ -42,7 +39,7 @@ export interface Product {
   id: string;
   name: string;
   slug: string;
-  category: string;
+  category: ProductCategory;
   subCategory?: string;
   service?: string;
   serviceName?: string;

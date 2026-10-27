@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Phone, MapPin, Clock, MessageCircle, Send, CheckCircle2 } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, MessageCircle, Send } from 'lucide-react';
 import { businessConfig } from '../config/businessConfig';
 import { useToast } from '../context/ToastContext';
 
@@ -16,7 +16,7 @@ export const ContactPage: React.FC = () => {
       showToast('Please fill in all required fields.', 'error');
       return;
     }
-    showToast('Thank you! Your message has been sent to SkyGift Customer Support.', 'success');
+    showToast('Thank you! Your message has been sent to GIFTORIA Customer Support.', 'success');
     setName('');
     setEmail('');
     setSubject('');
@@ -35,7 +35,7 @@ export const ContactPage: React.FC = () => {
             We are Here to Help
           </h1>
           <p className="text-xs sm:text-sm text-slate-500">
-            Have questions about delivery slots, bulk corporate gifting, or cake customization? Reach out to us anytime.
+            Have questions about custom gifts, 3D printing orders, or delivery in Maharashtra? Reach out to us.
           </p>
         </div>
 
@@ -51,7 +51,7 @@ export const ContactPage: React.FC = () => {
                   <MapPin className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="font-bold text-slate-800 block">Registered Studio & Hub:</span>
+                  <span className="font-bold text-slate-800 block">Registered Studio Address:</span>
                   <span className="mt-0.5 block">{businessConfig.address}</span>
                 </div>
               </div>
@@ -61,8 +61,10 @@ export const ContactPage: React.FC = () => {
                   <Phone className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="font-bold text-slate-800 block">Customer Care Hotline:</span>
-                  <span className="mt-0.5 block">{businessConfig.supportPhone}</span>
+                  <span className="font-bold text-slate-800 block">Phone Support:</span>
+                  <a href={`tel:+91${businessConfig.rawPhone}`} className="mt-0.5 block text-sky-600 hover:underline">
+                    +91 {businessConfig.rawPhone}
+                  </a>
                 </div>
               </div>
 
@@ -72,7 +74,9 @@ export const ContactPage: React.FC = () => {
                 </div>
                 <div>
                   <span className="font-bold text-slate-800 block">Support Email:</span>
-                  <span className="mt-0.5 block">{businessConfig.email}</span>
+                  <a href={`mailto:${businessConfig.email}`} className="mt-0.5 block text-sky-600 hover:underline">
+                    {businessConfig.email}
+                  </a>
                 </div>
               </div>
 
@@ -89,13 +93,13 @@ export const ContactPage: React.FC = () => {
 
             <div className="pt-4 border-t border-sky-100">
               <a
-                href={`https://wa.me/${businessConfig.whatsappNumber}`}
+                href={businessConfig.whatsappUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl text-xs transition-colors"
               >
                 <MessageCircle className="w-4 h-4" />
-                Chat on WhatsApp (+91 98765 43210)
+                Chat on WhatsApp (+91 {businessConfig.rawPhone})
               </a>
             </div>
           </div>
@@ -111,7 +115,7 @@ export const ContactPage: React.FC = () => {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Priya Nair"
+                    placeholder="e.g. Priya Deshmukh"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500"
@@ -135,7 +139,7 @@ export const ContactPage: React.FC = () => {
                 <label className="font-bold text-slate-700 block mb-1">Subject</label>
                 <input
                   type="text"
-                  placeholder="e.g. Custom Birthday Cake or Bulk Corporate Gift Enquiry"
+                  placeholder="e.g. Custom photo mug or bulk 3D printing enquiry"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500"
@@ -147,7 +151,7 @@ export const ContactPage: React.FC = () => {
                 <textarea
                   required
                   rows={4}
-                  placeholder="How can we help make your celebration special?"
+                  placeholder="How can we help make your gift special?"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500 resize-none"

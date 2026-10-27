@@ -2,67 +2,100 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { INITIAL_PRODUCTS, CATEGORIES_LIST, OCCASIONS_LIST } from '../data/products';
 import { ProductCard } from '../components/common/ProductCard';
-import { Filter, SlidersHorizontal, ArrowUpDown, X, Sparkles } from 'lucide-react';
+import { Filter, SlidersHorizontal, ArrowUpDown, Sparkles } from 'lucide-react';
+
+// Map pathnames or query parameters to clean category names
+function resolveCategoryFromPath(pathname: string, searchParam: string | null): string {
+  if (searchParam) return searchParam;
+
+  const lower = pathname.toLowerCase();
+  if (lower.includes('personalized')) return 'Personalized Gifts';
+  if (lower.includes('3d') || lower.includes('arts')) return '3D Arts';
+  if (lower.includes('forever') || lower.includes('bloom') || lower.includes('flower')) return 'Forever Blooms';
+  if (lower.includes('hamper')) return 'Gift Hampers';
+  if (lower.includes('birthday')) return 'Birthday Gifts';
+  if (lower.includes('anniversary')) return 'Anniversary Gifts';
+  if (lower.includes('jewel')) return 'Jewellery';
+
+  return 'All';
+}
 
 export const ShopPage: React.FC = () => {
   const [location] = useLocation();
 
-  // Parse query params from URL
-  const queryParams = useMemo(() => {
-    const searchPart = window.location.search;
-    return new URLSearchParams(searchPart);
-  }, [location]);
+  // Helper to read query params reactively
+  const getParam = (key: string) => {
+    try {
+      const search = window.location.search;
+      return new URLSearchParams(search).get(key);
+    } catch {
+      return null;
+    }
+  };
 
   const [selectedCategory, setSelectedCategory] = useState<string>(() => {
-    return queryParams.get('category') || 'All';
+    return resolveCategoryFromPath(location, getParam('category'));
   });
+
   const [selectedOccasion, setSelectedOccasion] = useState<string>(() => {
-    return queryParams.get('occasion') || 'All';
+    return getParam('occasion') || 'All';
   });
+
   const [sortBy, setSortBy] = useState<string>('featured');
-  const [filterExpress, setFilterExpress] = useState<boolean>(() => {
-    return queryParams.get('filter') === 'express';
-  });
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
-  // Sync state if URL search changes
+  // Sync state whenever URL or route changes
   useEffect(() => {
-    const cat = queryParams.get('category');
-    if (cat) setSelectedCategory(cat);
-    const occ = queryParams.get('occasion');
-    if (occ) setSelectedOccasion(occ);
-    if (queryParams.get('filter') === 'express') setFilterExpress(true);
-    if (queryParams.get('filter') === 'bestsellers') setSortBy('bestseller');
-  }, [queryParams]);
+    const cat = resolveCategoryFromPath(location, getParam('category'));
+    setSelectedCategory(cat);
 
-  // Filter and sort logic
+    const occ = getParam('occasion') || 'All';
+    setSelectedOccasion(occ);
+
+    if (getParam('filter') === 'bestsellers') setSortBy('bestseller');
+    if (getParam('filter') === 'trending') setSortBy('trending');
+  }, [location]);
+
+  // Robust normalized category filter
   const filteredProducts = useMemo(() => {
     return INITIAL_PRODUCTS.filter((product) => {
-      if (selectedCategory !== 'All' && product.category.toLowerCase() !== selectedCategory.toLowerCase()) {
-        return false;
+      if (selectedCategory !== 'All') {
+        const prodCat = product.category.toLowerCase().replace(/[^\w]/g, '');
+        const selCat = selectedCategory.toLowerCase().replace(/[^\w]/g, '');
+        if (prodCat !== selCat) {
+          // Check if category tag matches
+          const matchTag = product.tags.some(t => t.toLowerCase().includes(selCat));
+          if (!matchTag) return false;
+        }
       }
-      if (selectedOccasion !== 'All' && product.occasion?.toLowerCase() !== selectedOccasion.toLowerCase()) {
-        return false;
+
+      if (selectedOccasion !== 'All') {
+        if (!product.occasion || product.occasion.toLowerCase() !== selectedOccasion.toLowerCase()) {
+          return false;
+        }
       }
-      if (filterExpress && !product.isExpress && !product.isSameDay) {
-        return false;
-      }
+
       return true;
     }).sort((a, b) => {
       if (sortBy === 'price-low') return a.price - b.price;
       if (sortBy === 'price-high') return b.price - a.price;
       if (sortBy === 'rating') return b.rating - a.rating;
       if (sortBy === 'bestseller') return (b.bestSeller ? 1 : 0) - (a.bestSeller ? 1 : 0);
+      if (sortBy === 'trending') return (b.trending ? 1 : 0) - (a.trending ? 1 : 0);
       return 0; // default featured
     });
-  }, [selectedCategory, selectedOccasion, filterExpress, sortBy]);
+  }, [selectedCategory, selectedOccasion, sortBy]);
 
   const resetFilters = () => {
     setSelectedCategory('All');
     setSelectedOccasion('All');
-    setFilterExpress(false);
     setSortBy('featured');
   };
+
+  // Get active category metadata
+  const currentCategoryMeta = CATEGORIES_LIST.find(
+    c => c.name.toLowerCase() === selectedCategory.toLowerCase()
+  );
 
   return (
     <div className="bg-[#F8FCFF] min-h-screen py-8 text-slate-800">
@@ -70,21 +103,34 @@ export const ShopPage: React.FC = () => {
         
         {/* Header Breadcrumb & Title */}
         <div className="mb-6">
-          <div className="text-xs text-slate-600 mb-1 flex items-center gap-1.5">
+          <div className="text-xs text-slate-500 mb-1 flex items-center gap-1.5">
             <span>Home</span>
             <span>/</span>
             <span className="text-sky-600 font-semibold">
               {selectedCategory === 'All' ? 'All Gift Catalog' : selectedCategory}
             </span>
           </div>
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                {selectedCategory === 'All' ? 'Explore All Gifts & Flowers' : selectedCategory}
+                {selectedCategory === 'All' ? 'All Curated Gifts' : selectedCategory}
               </h1>
-              <p className="text-xs text-slate-500 mt-1">
-                Showing {filteredProducts.length} curated gift items with express delivery options
-              </p>
+              
+              {/* Specific subtitle for Forever Blooms as requested */}
+              {selectedCategory === 'Forever Blooms' ? (
+                <p className="text-xs font-semibold text-sky-600 mt-1">
+                  Handcrafted flowers that last — handmade crochet, satin ribbon, paper and artificial bouquets.
+                </p>
+              ) : currentCategoryMeta?.description ? (
+                <p className="text-xs text-slate-500 mt-1">
+                  {currentCategoryMeta.description} • Showing {filteredProducts.length} items
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500 mt-1">
+                  Showing {filteredProducts.length} curated gift items
+                </p>
+              )}
             </div>
 
             {/* Mobile Filter toggle button & Desktop Sort dropdown */}
@@ -99,15 +145,16 @@ export const ShopPage: React.FC = () => {
 
               <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-sky-200 text-xs font-medium shadow-xs">
                 <ArrowUpDown className="w-3.5 h-3.5 text-sky-500" />
-                <span className="text-slate-600 hidden sm:inline">Sort:</span>
+                <span className="text-slate-500 hidden sm:inline">Sort:</span>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                   className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
                 >
                   <option value="featured">Featured Picks</option>
-                  <option value="bestseller">Popular / Best Sellers</option>
-                  <option value="rating">Customer Rating</option>
+                  <option value="bestseller">Best Sellers</option>
+                  <option value="trending">Trending Now</option>
+                  <option value="rating">Highest Rated</option>
                   <option value="price-low">Price: Low to High</option>
                   <option value="price-high">Price: High to Low</option>
                 </select>
@@ -116,7 +163,7 @@ export const ShopPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Layout Grid */}
+        {/* Layout Grid: Sidebar + Product Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
           
           {/* Desktop Filter Sidebar */}
@@ -126,30 +173,17 @@ export const ShopPage: React.FC = () => {
                 <Filter className="w-4 h-4 text-sky-500" />
                 <h3 className="font-bold text-slate-900 text-sm">Refine Gifts</h3>
               </div>
-              {(selectedCategory !== 'All' || selectedOccasion !== 'All' || filterExpress) && (
+              {(selectedCategory !== 'All' || selectedOccasion !== 'All') && (
                 <button
                   onClick={resetFilters}
                   className="text-xs text-sky-600 font-semibold hover:underline"
                 >
-                  Clear All
+                  Reset
                 </button>
               )}
             </div>
 
-            {/* Express Delivery Filter Toggle */}
-            <div className="bg-sky-50/70 p-3 rounded-xl border border-sky-100">
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-xs font-bold text-slate-800">⚡ Express / Today Delivery</span>
-                <input
-                  type="checkbox"
-                  checked={filterExpress}
-                  onChange={(e) => setFilterExpress(e.target.checked)}
-                  className="w-4 h-4 text-sky-500 rounded focus:ring-sky-400 cursor-pointer"
-                />
-              </label>
-            </div>
-
-            {/* Categories Filter */}
+            {/* Categories Filter (The 7 Exact Categories) */}
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">
                 Categories
@@ -157,29 +191,30 @@ export const ShopPage: React.FC = () => {
               <div className="space-y-1">
                 <button
                   onClick={() => setSelectedCategory('All')}
-                  className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                     selectedCategory === 'All'
                       ? 'bg-sky-500 text-white font-bold'
                       : 'text-slate-600 hover:bg-sky-50 hover:text-sky-600'
                   }`}
                 >
-                  All Categories ({INITIAL_PRODUCTS.length})
+                  All Gifts ({INITIAL_PRODUCTS.length})
                 </button>
                 {CATEGORIES_LIST.map((cat) => {
                   const count = INITIAL_PRODUCTS.filter(p => p.category === cat.name).length;
+                  const isSelected = selectedCategory.toLowerCase() === cat.name.toLowerCase();
                   return (
                     <button
                       key={cat.id}
                       onClick={() => setSelectedCategory(cat.name)}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                        selectedCategory === cat.name
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                        isSelected
                           ? 'bg-sky-500 text-white font-bold'
                           : 'text-slate-600 hover:bg-sky-50 hover:text-sky-600'
                       }`}
                     >
                       <span>{cat.name}</span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
-                        selectedCategory === cat.name ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-500'
+                        isSelected ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-500'
                       }`}>
                         {count}
                       </span>
@@ -192,7 +227,7 @@ export const ShopPage: React.FC = () => {
             {/* Occasions Filter */}
             <div className="pt-3 border-t border-sky-100">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">
-                Occasions
+                Shop By Occasion
               </h4>
               <div className="space-y-1">
                 <button
@@ -230,15 +265,15 @@ export const ShopPage: React.FC = () => {
                 <div className="w-16 h-16 rounded-full bg-sky-50 text-sky-500 mx-auto flex items-center justify-center mb-4">
                   <Sparkles className="w-8 h-8" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800">No gifts match your filter criteria</h3>
+                <h3 className="text-lg font-bold text-slate-800">No gifts found in this category</h3>
                 <p className="text-xs text-slate-500 mt-1 mb-6">
-                  Try clearing your filters or select a different category to view our range of fresh gifts.
+                  Try clearing your filters or explore our other collections.
                 </p>
                 <button
                   onClick={resetFilters}
                   className="bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition-all"
                 >
-                  Reset All Filters
+                  View All Gifts
                 </button>
               </div>
             ) : (
@@ -260,37 +295,30 @@ export const ShopPage: React.FC = () => {
           <div className="fixed inset-0 bg-slate-900/40" onClick={() => setMobileFilterOpen(false)} />
           <div className="relative w-4/5 max-w-xs bg-white h-full shadow-2xl flex flex-col z-10 p-5 overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-sky-100">
-              <h3 className="font-bold text-slate-900">Filters</h3>
-              <button onClick={() => setMobileFilterOpen(false)}>
-                <X className="w-5 h-5 text-slate-500" />
+              <h3 className="font-bold text-slate-900">Select Category</h3>
+              <button 
+                onClick={() => setMobileFilterOpen(false)}
+                className="text-slate-500 p-1"
+              >
+                ✕
               </button>
             </div>
 
             <div className="py-4 space-y-4">
-              <label className="flex items-center justify-between text-xs font-bold text-slate-800 p-3 bg-sky-50 rounded-xl">
-                <span>⚡ Express Delivery Only</span>
-                <input
-                  type="checkbox"
-                  checked={filterExpress}
-                  onChange={(e) => setFilterExpress(e.target.checked)}
-                  className="w-4 h-4 text-sky-500 rounded"
-                />
-              </label>
-
               <div>
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Category</h4>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Categories</h4>
                 <div className="space-y-1">
                   <button
                     onClick={() => { setSelectedCategory('All'); setMobileFilterOpen(false); }}
                     className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium ${selectedCategory === 'All' ? 'bg-sky-500 text-white font-bold' : 'text-slate-700'}`}
                   >
-                    All Categories
+                    All Gifts
                   </button>
                   {CATEGORIES_LIST.map((cat) => (
                     <button
                       key={cat.id}
                       onClick={() => { setSelectedCategory(cat.name); setMobileFilterOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium ${selectedCategory === cat.name ? 'bg-sky-500 text-white font-bold' : 'text-slate-700'}`}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium ${selectedCategory.toLowerCase() === cat.name.toLowerCase() ? 'bg-sky-500 text-white font-bold' : 'text-slate-700'}`}
                     >
                       {cat.name}
                     </button>

@@ -64,7 +64,7 @@ export const AccountPage: React.FC = () => {
               <User className="w-6 h-6" />
             </div>
             <h2 className="text-2xl font-black text-slate-900">
-              {authMode === 'login' ? 'Sign In to SkyGift' : 'Create SkyGift Account'}
+              {authMode === 'login' ? 'Sign In to GIFTORIA' : 'Create GIFTORIA Account'}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
               Track delivery status, save recipient addresses & view order history

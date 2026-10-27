@@ -15,7 +15,7 @@ export const TermsPage: React.FC = () => {
           <div className="space-y-2">
             <h3 className="font-bold text-slate-900 text-sm">1. Introduction</h3>
             <p>
-              Welcome to SkyGift. By accessing or using our website, services, and online gifting catalog, you agree to comply with and be bound by the following terms and conditions.
+              Welcome to GIFTORIA. By accessing or using our website, services, and online gifting catalog, you agree to comply with and be bound by the following terms and conditions.
             </p>
           </div>
 

@@ -17,6 +17,7 @@ import { useOrder } from '../context/OrderContext';
 import { useToast } from '../context/ToastContext';
 import { ShippingAddress } from '../types';
 import { businessConfig } from '../config/businessConfig';
+import { validateMaharashtraPincode } from '../utils/pincodeUtils';
 import confetti from 'canvas-confetti';
 
 export const CheckoutPage: React.FC = () => {
@@ -88,6 +89,12 @@ export const CheckoutPage: React.FC = () => {
     }
     if (!pincode.trim() || pincode.trim().length !== 6 || !/^\d+$/.test(pincode)) {
       showToast('Please provide a valid 6-digit Indian PIN code.', 'error');
+      return;
+    }
+
+    const pinValidation = validateMaharashtraPincode(pincode);
+    if (!pinValidation.isValid || !pinValidation.isMaharashtra) {
+      showToast(pinValidation.message, 'error');
       return;
     }
 
@@ -293,10 +300,9 @@ export const CheckoutPage: React.FC = () => {
                     onChange={(e) => setDeliverySlot(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl text-xs focus:outline-none focus:border-sky-500 text-slate-800 font-medium"
                   >
-                    <option value="Standard Daytime (9:00 AM - 6:00 PM)">Standard Daytime (9:00 AM - 6:00 PM)</option>
-                    <option value="Morning Surprise (7:00 AM - 9:00 AM)">Morning Surprise (7:00 AM - 9:00 AM)</option>
-                    <option value="Evening Slot (5:00 PM - 9:00 PM)">Evening Slot (5:00 PM - 9:00 PM)</option>
-                    <option value="Midnight Delivery (11:30 PM - 12:30 AM)">Midnight Surprise (11:30 PM - 12:30 AM)</option>
+                    <option value="Standard Daytime Dispatch (9:00 AM - 6:00 PM)">Standard Daytime Dispatch (9:00 AM - 6:00 PM)</option>
+                    <option value="Morning Dispatch Window (9:00 AM - 1:00 PM)">Morning Dispatch Window (9:00 AM - 1:00 PM)</option>
+                    <option value="Afternoon Dispatch Window (1:00 PM - 6:00 PM)">Afternoon Dispatch Window (1:00 PM - 6:00 PM)</option>
                   </select>
                 </div>
 
