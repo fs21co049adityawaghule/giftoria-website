@@ -139,16 +139,20 @@ export const AdminDashboard: React.FC = () => {
     return filterOrdersByDate(orders, timeFilter);
   }, [orders, timeFilter]);
 
-  // Overall Financial Calculations
+  // Overall Financial Calculations (Calculated exclusively from verified paid orders)
   const metrics = useMemo(() => {
+    const verifiedPaidOrders = orders.filter(
+      (o) => o.paymentStatus === 'paid' && o.orderStatus !== 'PENDING PAYMENT' && o.orderStatus !== 'PAYMENT FAILED'
+    );
     const totalOrders = orders.length;
-    const todayOrders = filterOrdersByDate(orders, 'daily').length;
+    const confirmedCount = verifiedPaidOrders.length;
+    const todayOrders = filterOrdersByDate(verifiedPaidOrders, 'daily').length;
 
     let totalRevenue = 0;
     let totalCostOfGoods = 0;
     let totalDirectExpenses = 0;
 
-    orders.forEach((ord) => {
+    verifiedPaidOrders.forEach((ord) => {
       totalRevenue += ord.grandTotal || 0;
       totalDirectExpenses += ord.directExpenses || 0;
 
@@ -167,12 +171,14 @@ export const AdminDashboard: React.FC = () => {
     const netProfit = totalRevenue - totalCostOfGoods - totalDirectExpenses;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
-    const pendingOrders = orders.filter((o) => o.orderStatus === 'New Order' || o.orderStatus === 'In Production' || o.orderStatus === 'Customization Pending').length;
-    const readyOrDispatched = orders.filter((o) => o.orderStatus === 'Ready for Dispatch' || o.orderStatus === 'Dispatched').length;
-    const delivered = orders.filter((o) => o.orderStatus === 'Delivered').length;
+    const pendingOrders = orders.filter((o) => o.orderStatus === 'PENDING PAYMENT').length;
+    const processingOrders = orders.filter((o) => o.orderStatus === 'PROCESSING' || o.orderStatus === 'PAID / CONFIRMED').length;
+    const shippedOrders = orders.filter((o) => o.orderStatus === 'SHIPPED').length;
+    const deliveredOrders = orders.filter((o) => o.orderStatus === 'DELIVERED').length;
 
     return {
       totalOrders,
+      confirmedCount,
       todayOrders,
       totalRevenue,
       totalCostOfGoods,
@@ -180,13 +186,14 @@ export const AdminDashboard: React.FC = () => {
       netProfit,
       profitMargin,
       pendingOrders,
-      readyOrDispatched,
-      delivered,
+      processingOrders,
+      shippedOrders,
+      deliveredOrders,
       activeProductsCount: products.filter((p) => p.isActive !== false).length,
     };
   }, [orders, products]);
 
-  // Report Metrics (filtered by time)
+  // Report Metrics (filtered by time, exclusively verified paid orders)
   const reportMetrics = useMemo(() => {
     let rev = 0;
     let cogs = 0;
@@ -195,7 +202,11 @@ export const AdminDashboard: React.FC = () => {
     const categoryStats: Record<string, { units: number; revenue: number; cost: number }> = {};
     const productStats: Record<string, { name: string; category: string; units: number; revenue: number }> = {};
 
-    filteredOrdersForReports.forEach((ord) => {
+    const paidFiltered = filteredOrdersForReports.filter(
+      (o) => o.paymentStatus === 'paid' && o.orderStatus !== 'PENDING PAYMENT' && o.orderStatus !== 'PAYMENT FAILED'
+    );
+
+    paidFiltered.forEach((ord) => {
       rev += ord.grandTotal || 0;
       expenses += ord.directExpenses || 0;
 
@@ -246,7 +257,7 @@ export const AdminDashboard: React.FC = () => {
       expenses,
       netProfit,
       profitMargin,
-      ordersCount: filteredOrdersForReports.length,
+      ordersCount: paidFiltered.length,
       categoryStats,
       topProducts: Object.values(productStats).sort((a, b) => b.revenue - a.revenue),
     };
@@ -259,11 +270,22 @@ export const AdminDashboard: React.FC = () => {
         orderSearchQuery === '' ||
         ord.orderId.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
         ord.customer.fullName.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+        (ord.customer.email && ord.customer.email.toLowerCase().includes(orderSearchQuery.toLowerCase())) ||
         ord.customer.mobile.includes(orderSearchQuery) ||
+        (ord.razorpayPaymentId && ord.razorpayPaymentId.toLowerCase().includes(orderSearchQuery.toLowerCase())) ||
+        (ord.razorpayOrderId && ord.razorpayOrderId.toLowerCase().includes(orderSearchQuery.toLowerCase())) ||
         ord.customer.city.toLowerCase().includes(orderSearchQuery.toLowerCase());
 
-      const matchesStatus =
-        orderStatusFilter === 'all' || ord.orderStatus === orderStatusFilter;
+      let matchesStatus = true;
+      if (orderStatusFilter === 'confirmed') {
+        matchesStatus = ord.paymentStatus === 'paid' && ord.orderStatus !== 'PENDING PAYMENT' && ord.orderStatus !== 'PAYMENT FAILED';
+      } else if (orderStatusFilter === 'pending') {
+        matchesStatus = ord.orderStatus === 'PENDING PAYMENT';
+      } else if (orderStatusFilter === 'failed') {
+        matchesStatus = ord.orderStatus === 'PAYMENT FAILED';
+      } else if (orderStatusFilter !== 'all') {
+        matchesStatus = ord.orderStatus === orderStatusFilter;
+      }
 
       return matchesSearch && matchesStatus;
     });
@@ -504,10 +526,10 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             {/* Pipeline status widgets */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-2xl flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold text-amber-800">Pending / In Production</span>
+                  <span className="text-xs font-bold text-amber-800">Pending Payment</span>
                   <p className="text-xl font-black text-amber-900">{metrics.pendingOrders} orders</p>
                 </div>
                 <Clock className="w-8 h-8 text-amber-500 opacity-80" />
@@ -515,16 +537,24 @@ export const AdminDashboard: React.FC = () => {
 
               <div className="bg-sky-50/70 border border-sky-200 p-4 rounded-2xl flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold text-sky-800">Dispatched / In Transit</span>
-                  <p className="text-xl font-black text-sky-900">{metrics.readyOrDispatched} orders</p>
+                  <span className="text-xs font-bold text-sky-800">Paid / Processing</span>
+                  <p className="text-xl font-black text-sky-900">{metrics.processingOrders} orders</p>
                 </div>
-                <Truck className="w-8 h-8 text-sky-500 opacity-80" />
+                <Package className="w-8 h-8 text-sky-500 opacity-80" />
+              </div>
+
+              <div className="bg-indigo-50/70 border border-indigo-200 p-4 rounded-2xl flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-indigo-800">Dispatched</span>
+                  <p className="text-xl font-black text-indigo-900">{metrics.shippedOrders} orders</p>
+                </div>
+                <Truck className="w-8 h-8 text-indigo-500 opacity-80" />
               </div>
 
               <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold text-emerald-800">Delivered Successfully</span>
-                  <p className="text-xl font-black text-emerald-900">{metrics.delivered} orders</p>
+                  <span className="text-xs font-bold text-emerald-800">Delivered</span>
+                  <p className="text-xl font-black text-emerald-900">{metrics.deliveredOrders} orders</p>
                 </div>
                 <CheckCircle className="w-8 h-8 text-emerald-500 opacity-80" />
               </div>
@@ -585,48 +615,104 @@ export const AdminDashboard: React.FC = () => {
         )}
 
         {/* ========================================================= */}
-        {/* TAB 2: ORDERS MANAGEMENT (MULTI-PRODUCT HANDLING) */}
+        {/* TAB 2: ORDERS MANAGEMENT (MULTI-PRODUCT HANDLING & PAYMENT VERIFICATION) */}
         {/* ========================================================= */}
         {activeTab === 'orders' && (
           <div className="space-y-6">
-            {/* Search & Status Filters */}
-            <div className="bg-white rounded-3xl border border-sky-100 p-4 shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
-              <div className="relative w-full sm:w-80">
-                <Search className="w-4 h-4 text-sky-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search by Order ID, Customer, Phone..."
-                  value={orderSearchQuery}
-                  onChange={(e) => setOrderSearchQuery(e.target.value)}
-                  className="w-full bg-slate-50 border border-sky-100 rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-sky-500"
-                />
+            {/* Quick Filter Tabs & Search Bar */}
+            <div className="bg-white rounded-3xl border border-sky-100 p-4 shadow-xs space-y-3">
+              {/* Filter pills */}
+              <div className="flex items-center gap-2 flex-wrap pb-2 border-b border-sky-50">
+                <button
+                  onClick={() => setOrderStatusFilter('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    orderStatusFilter === 'all'
+                      ? 'bg-sky-500 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  All Records ({orders.length})
+                </button>
+                <button
+                  onClick={() => setOrderStatusFilter('confirmed')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    orderStatusFilter === 'confirmed'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Confirmed &amp; Paid ({orders.filter(o => o.paymentStatus === 'paid' && o.orderStatus !== 'PENDING PAYMENT' && o.orderStatus !== 'PAYMENT FAILED').length})
+                </button>
+                <button
+                  onClick={() => setOrderStatusFilter('pending')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    orderStatusFilter === 'pending'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  Pending Payment ({orders.filter(o => o.orderStatus === 'PENDING PAYMENT').length})
+                </button>
+                <button
+                  onClick={() => setOrderStatusFilter('failed')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    orderStatusFilter === 'failed'
+                      ? 'bg-rose-600 text-white shadow-xs'
+                      : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                  }`}
+                >
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  Payment Failed ({orders.filter(o => o.orderStatus === 'PAYMENT FAILED').length})
+                </button>
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-                <span className="text-[11px] font-bold text-slate-400 shrink-0">Filter Status:</span>
-                <select
-                  value={orderStatusFilter}
-                  onChange={(e) => setOrderStatusFilter(e.target.value)}
-                  className="bg-slate-50 border border-sky-100 rounded-xl py-2 px-3 text-xs font-semibold text-slate-700 focus:outline-none focus:border-sky-500"
-                >
-                  <option value="all">All Orders ({orders.length})</option>
-                  {ORDER_STATUSES.map((st: OrderStatus) => (
-                    <option key={st} value={st}>
-                      {st}
-                    </option>
-                  ))}
-                </select>
+              {/* Search and Specific Status Filter */}
+              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between pt-1">
+                <div className="relative w-full sm:w-96">
+                  <Search className="w-4 h-4 text-sky-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search Order ID, Customer, Phone, Email, Payment ID..."
+                    value={orderSearchQuery}
+                    onChange={(e) => setOrderSearchQuery(e.target.value)}
+                    className="w-full bg-slate-50 border border-sky-100 rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
+                  <span className="text-[11px] font-bold text-slate-400 shrink-0">Exact Status:</span>
+                  <select
+                    value={orderStatusFilter}
+                    onChange={(e) => setOrderStatusFilter(e.target.value)}
+                    className="bg-slate-50 border border-sky-100 rounded-xl py-2 px-3 text-xs font-semibold text-slate-700 focus:outline-none focus:border-sky-500"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="confirmed">Only Confirmed &amp; Paid</option>
+                    <option value="pending">Only Pending Payment</option>
+                    <option value="failed">Only Payment Failed</option>
+                    {ORDER_STATUSES.map((st: OrderStatus) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
             {/* Orders List Cards with Multi-Product Blocks */}
             <div className="space-y-6">
               {displayedOrders.length === 0 ? (
-                <div className="bg-white rounded-3xl border border-sky-100 p-12 text-center text-slate-400">
+                <div className="bg-white rounded-3xl border border-sky-100 p-12 text-center text-slate-400 space-y-2">
+                  <Package className="w-10 h-10 mx-auto text-slate-300" />
                   <p className="text-sm font-semibold">No orders match the selected search or filter.</p>
+                  <p className="text-xs text-slate-400">Try changing your search keywords or switching filter tabs.</p>
                 </div>
               ) : (
                 displayedOrders.map((ord) => {
+                  const isVerifiedPaid = ord.paymentStatus === 'paid' && ord.orderStatus !== 'PENDING PAYMENT' && ord.orderStatus !== 'PAYMENT FAILED';
                   const itemsList = (ord.itemSnapshots && ord.itemSnapshots.length > 0)
                     ? ord.itemSnapshots
                     : ord.items.map(i => ({
@@ -647,14 +733,48 @@ export const AdminDashboard: React.FC = () => {
                     <div key={ord.orderId} className="bg-white rounded-3xl border border-sky-100 shadow-sm overflow-hidden">
                       {/* Top Order Summary Bar */}
                       <div className="bg-slate-50/70 p-4 sm:p-5 border-b border-sky-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-mono font-black text-sky-600 bg-sky-50 px-2.5 py-1 rounded-xl border border-sky-200">
-                            #{ord.orderId}
-                          </span>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="text-sm font-mono font-black text-sky-600 bg-sky-50 px-2.5 py-1 rounded-xl border border-sky-200">
+                              #{ord.orderId}
+                            </span>
+
+                            {/* Payment Verification Badge */}
+                            {ord.paymentStatus === 'paid' ? (
+                              <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1.5 border border-emerald-300">
+                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Razorpay Verified</span>
+                                {ord.razorpayPaymentId && (
+                                  <span className="font-mono text-[11px] opacity-90">({ord.razorpayPaymentId})</span>
+                                )}
+                              </span>
+                            ) : ord.orderStatus === 'PAYMENT FAILED' ? (
+                              <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-rose-100 text-rose-800 flex items-center gap-1.5 border border-rose-300">
+                                <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                                <span>Payment Failed</span>
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-100 text-amber-800 flex items-center gap-1.5 border border-amber-300">
+                                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Pending Payment (Unverified)</span>
+                              </span>
+                            )}
+
+                            <span className="text-[11px] text-slate-400 font-medium">
+                              📅 {new Date(ord.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                            </span>
+                          </div>
+
                           <div>
                             <h3 className="font-bold text-slate-900 text-sm">{ord.customer.fullName}</h3>
-                            <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                            <div className="flex items-center gap-2 text-[11px] text-slate-500 flex-wrap">
                               <span>📞 {ord.customer.mobile}</span>
+                              {ord.customer.email && (
+                                <>
+                                  <span>•</span>
+                                  <span>✉️ {ord.customer.email}</span>
+                                </>
+                              )}
                               <span>•</span>
                               <span>📍 {ord.customer.city}, PIN: {ord.customer.pincode}</span>
                             </div>
@@ -668,32 +788,53 @@ export const AdminDashboard: React.FC = () => {
                             <span className="text-[10px] font-bold text-slate-400 uppercase">Status:</span>
                             <select
                               value={ord.orderStatus}
-                              onChange={(e) => updateOrderStatus(ord.orderId, e.target.value as OrderStatus)}
+                              onChange={(e) => {
+                                const newSt = e.target.value as OrderStatus;
+                                if (!isVerifiedPaid && (newSt === 'PAID / CONFIRMED' || newSt === 'PROCESSING' || newSt === 'SHIPPED' || newSt === 'DELIVERED')) {
+                                  showToast('Cannot mark an unverified order as confirmed. Requires valid Razorpay payment verification.', 'error');
+                                  return;
+                                }
+                                updateOrderStatus(ord.orderId, newSt);
+                              }}
                               className="text-xs font-bold text-sky-700 bg-transparent focus:outline-none cursor-pointer"
                             >
-                              {ORDER_STATUSES.map((st: OrderStatus) => (
-                                <option key={st} value={st}>
-                                  {st}
-                                </option>
-                              ))}
+                              {ORDER_STATUSES.map((st: OrderStatus) => {
+                                const isDisallowedForUnpaid = !isVerifiedPaid && (st === 'PAID / CONFIRMED' || st === 'PROCESSING' || st === 'SHIPPED' || st === 'DELIVERED');
+                                return (
+                                  <option key={st} value={st} disabled={isDisallowedForUnpaid}>
+                                    {st} {isDisallowedForUnpaid ? '(Requires Verified Payment)' : ''}
+                                  </option>
+                                );
+                              })}
                             </select>
                           </div>
 
-                          {/* Payment Status Selector */}
+                          {/* Payment Status Indicator / Locked Toggle */}
                           <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-sky-200">
                             <span className="text-[10px] font-bold text-slate-400 uppercase">Payment:</span>
-                            <select
-                              value={ord.paymentStatus}
-                              onChange={(e) => updatePaymentStatus(ord.orderId, e.target.value as PaymentStatus)}
-                              className={`text-xs font-bold bg-transparent focus:outline-none cursor-pointer ${
-                                ord.paymentStatus === 'paid' ? 'text-emerald-600' : 'text-amber-600'
-                              }`}
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="paid">Paid</option>
-                              <option value="failed">Failed</option>
-                              <option value="refunded">Refunded</option>
-                            </select>
+                            {ord.paymentStatus === 'paid' ? (
+                              <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                                <ShieldCheck className="w-3.5 h-3.5" /> Paid (Verified)
+                              </span>
+                            ) : (
+                              <select
+                                value={ord.paymentStatus}
+                                onChange={(e) => {
+                                  const newPayStatus = e.target.value as PaymentStatus;
+                                  if (newPayStatus === 'paid') {
+                                    showToast('Cannot manually mark as paid. Payment must be verified by Razorpay webhook or signature.', 'error');
+                                    return;
+                                  }
+                                  updatePaymentStatus(ord.orderId, newPayStatus);
+                                }}
+                                className="text-xs font-bold text-amber-600 bg-transparent focus:outline-none cursor-pointer"
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="failed">Failed</option>
+                                <option value="refunded">Refunded</option>
+                                <option value="paid" disabled>Paid (Requires Razorpay)</option>
+                              </select>
+                            )}
                           </div>
 
                           {/* WhatsApp Customer Action */}
@@ -709,6 +850,26 @@ export const AdminDashboard: React.FC = () => {
                             <MessageCircle className="w-4 h-4" />
                           </a>
                         </div>
+                      </div>
+
+                      {/* Razorpay Audit Details Bar (if present or pending) */}
+                      <div className="bg-slate-100/50 px-4 py-2 border-b border-sky-100 flex items-center justify-between flex-wrap gap-2 text-[11px] text-slate-600">
+                        <div className="flex items-center gap-4 flex-wrap font-mono">
+                          <span>Razorpay Order ID: <strong>{ord.razorpayOrderId || 'Pending checkout'}</strong></span>
+                          {ord.razorpayPaymentId && (
+                            <span>Payment ID: <strong className="text-emerald-700">{ord.razorpayPaymentId}</strong></span>
+                          )}
+                          {ord.paymentVerifiedAt && (
+                            <span className="font-sans text-slate-500">
+                              Verified at: {new Date(ord.paymentVerifiedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                            </span>
+                          )}
+                        </div>
+                        {ord.paymentFailureReason && (
+                          <span className="text-rose-600 font-medium">
+                            Failure: {ord.paymentFailureReason}
+                          </span>
+                        )}
                       </div>
 
                       {/* Multi-Product Blocks Container */}
@@ -1222,7 +1383,7 @@ export const AdminDashboard: React.FC = () => {
                   <tbody className="divide-y divide-sky-50 text-slate-700">
                     {orders.map((ord) => {
                       const delivery = ord.deliveryRecord || {
-                        deliveryStatus: ord.orderStatus === 'Delivered' ? 'Delivered' : ord.orderStatus === 'Dispatched' ? 'Dispatched' : 'Not Dispatched',
+                        deliveryStatus: ord.orderStatus === 'DELIVERED' ? 'Delivered' : ord.orderStatus === 'SHIPPED' ? 'Dispatched' : 'Not Dispatched',
                         courierPartner: 'Delhivery',
                         trackingId: '',
                         trackingUrl: '',

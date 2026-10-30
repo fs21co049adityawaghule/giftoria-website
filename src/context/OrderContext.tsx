@@ -12,6 +12,18 @@ import {
 import { useCart } from './CartContext';
 import { useToast } from './ToastContext';
 
+export interface VerifiedPaymentMeta {
+  orderId?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
+  paymentVerifiedAt?: string;
+  paymentStatus?: PaymentStatus;
+  orderStatus?: OrderStatus;
+  paymentFailureReason?: string;
+  isTestMode?: boolean;
+}
+
 interface OrderContextType {
   orders: Order[];
   createOrder: (shippingAddress: ShippingAddress, paymentMethod: PaymentMethod) => Order | null;
@@ -22,8 +34,29 @@ interface OrderContextType {
     discount: number,
     shippingFee: number,
     grandTotal: number,
-    paymentMethod: PaymentMethod
+    paymentMethod: PaymentMethod,
+    paymentMeta?: VerifiedPaymentMeta
   ) => Order;
+  confirmVerifiedOrder: (
+    shippingAddress: ShippingAddress,
+    items: CartItem[],
+    subtotal: number,
+    discount: number,
+    shippingFee: number,
+    grandTotal: number,
+    paymentMeta: VerifiedPaymentMeta
+  ) => Order;
+  recordPendingOrder: (
+    shippingAddress: ShippingAddress,
+    items: CartItem[],
+    subtotal: number,
+    grandTotal: number,
+    razorpayOrderId: string
+  ) => Order;
+  recordFailedOrder: (
+    orderId: string,
+    reason: string
+  ) => void;
   getOrderById: (orderId: string) => Order | undefined;
   updateOrderStatus: (orderId: string, status: OrderStatus, adminNotes?: string) => void;
   updatePaymentStatus: (orderId: string, paymentStatus: PaymentStatus) => void;
@@ -85,9 +118,13 @@ const SAMPLE_SEED_ORDERS: Order[] = [
     shippingFee: 0,
     directExpenses: 40,
     grandTotal: 575,
-    paymentMethod: 'upi',
+    paymentMethod: 'razorpay',
     paymentStatus: 'paid',
-    orderStatus: 'Delivered',
+    orderStatus: 'DELIVERED',
+    razorpayOrderId: 'order_N8492KULK77',
+    razorpayPaymentId: 'pay_N849298371204',
+    razorpaySignature: 'sig_verified_8492',
+    paymentVerifiedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
     deliveryRecord: {
       orderId: 'GFT-8492',
       customerName: 'Pooja Kulkarni',
@@ -154,9 +191,13 @@ const SAMPLE_SEED_ORDERS: Order[] = [
     shippingFee: 0,
     directExpenses: 30,
     grandTotal: 520,
-    paymentMethod: 'upi',
+    paymentMethod: 'razorpay',
     paymentStatus: 'paid',
-    orderStatus: 'In Production',
+    orderStatus: 'PROCESSING',
+    razorpayOrderId: 'order_N9154DESH88',
+    razorpayPaymentId: 'pay_N915488392019',
+    razorpaySignature: 'sig_verified_9154',
+    paymentVerifiedAt: new Date().toISOString(),
     deliveryRecord: {
       orderId: 'GFT-9154',
       customerName: 'Rahul Deshmukh',
@@ -212,9 +253,13 @@ const SAMPLE_SEED_ORDERS: Order[] = [
     shippingFee: 0,
     directExpenses: 50,
     grandTotal: 600,
-    paymentMethod: 'card',
+    paymentMethod: 'razorpay',
     paymentStatus: 'paid',
-    orderStatus: 'Ready for Dispatch',
+    orderStatus: 'PAID / CONFIRMED',
+    razorpayOrderId: 'order_N6320SHAR99',
+    razorpayPaymentId: 'pay_N632055198200',
+    razorpaySignature: 'sig_verified_6320',
+    paymentVerifiedAt: new Date(Date.now() - 86400000).toISOString(),
     deliveryRecord: {
       orderId: 'GFT-6320',
       customerName: 'Ananya Sharma',
@@ -267,10 +312,10 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     ordDiscount: number,
     ordShippingFee: number,
     ordGrandTotal: number,
-    paymentMethod: PaymentMethod
+    paymentMethod: PaymentMethod,
+    paymentMeta?: VerifiedPaymentMeta
   ): Order => {
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const orderId = `GFT-${randomSuffix}`;
+    const orderId = paymentMeta?.orderId || `GFT-${Math.floor(1000 + Math.random() * 9000)}`;
     const now = new Date().toISOString();
 
     const orderItems = items.length > 0 ? [...items] : [...cart];
@@ -307,6 +352,12 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updatedAt: now
     };
 
+    const paymentStatus: PaymentStatus = paymentMeta?.paymentStatus || 
+      (paymentMethod === 'razorpay' ? 'pending' : paymentMethod === 'whatsapp_enquiry' ? 'pending' : 'paid');
+
+    const orderStatus: OrderStatus = paymentMeta?.orderStatus || 
+      (paymentStatus === 'paid' ? 'PAID / CONFIRMED' : 'PENDING PAYMENT');
+
     const newOrder: Order = {
       orderId,
       customer: shippingAddress,
@@ -318,16 +369,101 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       directExpenses: 0,
       grandTotal: ordGrandTotal,
       paymentMethod,
-      paymentStatus: paymentMethod === 'whatsapp_enquiry' ? 'pending' : 'paid',
-      orderStatus: 'New Order',
+      paymentStatus,
+      orderStatus,
       deliveryRecord: initialDelivery,
-      isTestMode: false,
+      isTestMode: paymentMeta?.isTestMode ?? false,
       createdAt: now,
       updatedAt: now,
+      razorpayOrderId: paymentMeta?.razorpayOrderId,
+      razorpayPaymentId: paymentMeta?.razorpayPaymentId,
+      razorpaySignature: paymentMeta?.razorpaySignature,
+      paymentVerifiedAt: paymentMeta?.paymentVerifiedAt,
+      paymentFailureReason: paymentMeta?.paymentFailureReason
     };
 
-    setOrders((prev) => [newOrder, ...prev]);
+    setOrders((prev) => {
+      // Upsert: If order exists with this ID or razorpayOrderId, update it
+      const existingIndex = prev.findIndex(
+        (o) => o.orderId === orderId || (paymentMeta?.razorpayOrderId && o.razorpayOrderId === paymentMeta.razorpayOrderId)
+      );
+      if (existingIndex > -1) {
+        const updated = [...prev];
+        updated[existingIndex] = newOrder;
+        return updated;
+      }
+      return [newOrder, ...prev];
+    });
+
     return newOrder;
+  };
+
+  const confirmVerifiedOrder = (
+    shippingAddress: ShippingAddress,
+    items: CartItem[],
+    ordSubtotal: number,
+    ordDiscount: number,
+    ordShippingFee: number,
+    ordGrandTotal: number,
+    paymentMeta: VerifiedPaymentMeta
+  ): Order => {
+    const verifiedOrder = placeOrder(
+      shippingAddress,
+      items,
+      ordSubtotal,
+      ordDiscount,
+      ordShippingFee,
+      ordGrandTotal,
+      'razorpay',
+      {
+        ...paymentMeta,
+        paymentStatus: 'paid',
+        orderStatus: 'PAID / CONFIRMED',
+        paymentVerifiedAt: paymentMeta.paymentVerifiedAt || new Date().toISOString()
+      }
+    );
+
+    showToast(`Payment Verified! Order #${verifiedOrder.orderId} confirmed 🎉`, 'success');
+    return verifiedOrder;
+  };
+
+  const recordPendingOrder = (
+    shippingAddress: ShippingAddress,
+    items: CartItem[],
+    ordSubtotal: number,
+    ordGrandTotal: number,
+    razorpayOrderId: string
+  ): Order => {
+    return placeOrder(
+      shippingAddress,
+      items,
+      ordSubtotal,
+      0,
+      0,
+      ordGrandTotal,
+      'razorpay',
+      {
+        razorpayOrderId,
+        paymentStatus: 'pending',
+        orderStatus: 'PENDING PAYMENT'
+      }
+    );
+  };
+
+  const recordFailedOrder = (orderId: string, reason: string) => {
+    setOrders((prev) =>
+      prev.map((ord) => {
+        if (ord.orderId !== orderId && ord.razorpayOrderId !== orderId) return ord;
+        return {
+          ...ord,
+          orderStatus: 'PAYMENT FAILED',
+          paymentStatus: 'failed',
+          paymentFailureReason: reason,
+          updatedAt: new Date().toISOString()
+        };
+      })
+    );
+    showToast(`Payment declined: ${reason}`, 'error');
   };
 
   const createOrder = (shippingAddress: ShippingAddress, paymentMethod: PaymentMethod): Order | null => {
@@ -356,6 +492,16 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateOrderStatus = (orderId: string, status: OrderStatus, adminNotes?: string) => {
+    const targetOrder = orders.find(o => o.orderId === orderId);
+    if (
+      targetOrder && 
+      (targetOrder.orderStatus === 'PENDING PAYMENT' || targetOrder.orderStatus === 'PAYMENT FAILED') && 
+      status === 'PAID / CONFIRMED'
+    ) {
+      showToast('Security Alert: Unverified orders cannot be manually marked as PAID. Backend verification required.', 'error');
+      return;
+    }
+
     setOrders((prev) =>
       prev.map((ord) => {
         if (ord.orderId !== orderId) return ord;
@@ -363,7 +509,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const updatedDelivery = ord.deliveryRecord
           ? {
               ...ord.deliveryRecord,
-              deliveryStatus: status === 'Dispatched' ? 'Dispatched' : status === 'Delivered' ? 'Delivered' : ord.deliveryRecord.deliveryStatus,
+              deliveryStatus: status === 'SHIPPED' || status === 'Dispatched' ? 'Dispatched' : status === 'DELIVERED' || status === 'Delivered' ? 'Delivered' : ord.deliveryRecord.deliveryStatus,
               updatedAt: now,
             }
           : undefined;
@@ -381,6 +527,12 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updatePaymentStatus = (orderId: string, paymentStatus: PaymentStatus) => {
+    const targetOrder = orders.find(o => o.orderId === orderId);
+    if (targetOrder && targetOrder.paymentStatus !== 'paid' && paymentStatus === 'paid') {
+      showToast('Security Alert: Unverified payments cannot be manually marked as paid.', 'error');
+      return;
+    }
+
     setOrders((prev) =>
       prev.map((ord) =>
         ord.orderId === orderId ? { ...ord, paymentStatus, updatedAt: new Date().toISOString() } : ord
@@ -448,6 +600,9 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         orders,
         createOrder,
         placeOrder,
+        confirmVerifiedOrder,
+        recordPendingOrder,
+        recordFailedOrder,
         getOrderById,
         updateOrderStatus,
         updatePaymentStatus,

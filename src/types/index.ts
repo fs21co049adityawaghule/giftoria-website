@@ -107,9 +107,16 @@ export interface ShippingAddress {
   messageCard?: string;
 }
 
-export type PaymentMethod = 'upi' | 'card' | 'netbanking' | 'whatsapp_enquiry' | 'online_gateway';
+export type PaymentMethod = 'razorpay' | 'upi' | 'card' | 'netbanking' | 'whatsapp_enquiry' | 'online_gateway';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 export type OrderStatus = 
+  | 'PENDING PAYMENT'
+  | 'PAYMENT FAILED'
+  | 'PAID / CONFIRMED'
+  | 'PROCESSING'
+  | 'SHIPPED'
+  | 'DELIVERED'
+  | 'CANCELLED / REFUNDED'
   | 'New Order'
   | 'Confirmed'
   | 'Customization Pending'
@@ -121,15 +128,13 @@ export type OrderStatus =
   | 'Cancelled';
 
 export const ORDER_STATUSES: OrderStatus[] = [
-  'New Order',
-  'Confirmed',
-  'Customization Pending',
-  'In Production',
-  'Ready for Dispatch',
-  'Dispatched',
-  'Out for Delivery',
-  'Delivered',
-  'Cancelled'
+  'PENDING PAYMENT',
+  'PAYMENT FAILED',
+  'PAID / CONFIRMED',
+  'PROCESSING',
+  'SHIPPED',
+  'DELIVERED',
+  'CANCELLED / REFUNDED'
 ];
 
 export type DeliveryStatus =
@@ -201,6 +206,13 @@ export interface Order {
   isTestMode: boolean;
   createdAt: string;
   updatedAt: string;
+  
+  // Razorpay Payment Gateway integration fields
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
+  paymentVerifiedAt?: string;
+  paymentFailureReason?: string;
 }
 
 export interface Toast {

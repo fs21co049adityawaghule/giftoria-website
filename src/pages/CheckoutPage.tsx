@@ -10,7 +10,10 @@ import {
   AlertCircle,
   CreditCard,
   Lock,
-  ArrowRight
+  ArrowRight,
+  Zap,
+  MessageCircle,
+  RefreshCw
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useOrder } from '../context/OrderContext';
@@ -18,12 +21,13 @@ import { useToast } from '../context/ToastContext';
 import { ShippingAddress, PaymentMethod } from '../types';
 import { businessConfig } from '../config/businessConfig';
 import { validateMaharashtraPincode } from '../utils/pincodeUtils';
+import { loadRazorpayScript } from '../utils/razorpay';
 import confetti from 'canvas-confetti';
 
 export const CheckoutPage: React.FC = () => {
   const [, setLocation] = useLocation();
   const { cart, subtotal, shippingFee, grandTotal, clearCart } = useCart();
-  const { placeOrder } = useOrder();
+  const { placeOrder, confirmVerifiedOrder, recordPendingOrder, recordFailedOrder } = useOrder();
   const { showToast } = useToast();
 
   const [fullName, setFullName] = useState('');
@@ -42,9 +46,11 @@ export const CheckoutPage: React.FC = () => {
   const [deliverySlot, setDeliverySlot] = useState('Standard Daytime (9:00 AM - 6:00 PM)');
   const [messageCard, setMessageCard] = useState('');
 
-  // Payment method selection (COD removed entirely as per business requirements)
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('upi');
+  // Payment method selection (Default: Razorpay Gateway; COD strictly removed)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('razorpay');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [verificationStep, setVerificationStep] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   if (cart.length === 0) {
     return (
@@ -63,8 +69,9 @@ export const CheckoutPage: React.FC = () => {
     );
   }
 
-  const handleSubmitOrder = (e: React.FormEvent) => {
+  const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     // Validation
     if (!fullName.trim()) {
@@ -99,6 +106,7 @@ export const CheckoutPage: React.FC = () => {
     }
 
     setIsSubmitting(true);
+    setPaymentError(null);
 
     const customerAddress: ShippingAddress = {
       fullName,
@@ -114,33 +122,179 @@ export const CheckoutPage: React.FC = () => {
       messageCard
     };
 
-    setTimeout(() => {
-      const newOrder = placeOrder(
+    // Flow A: Direct WhatsApp Order Assistance
+    if (paymentMethod === 'whatsapp_enquiry') {
+      const order = placeOrder(
         customerAddress,
         cart,
         subtotal,
         0,
         shippingFee,
         grandTotal,
-        paymentMethod
+        'whatsapp_enquiry',
+        { paymentStatus: 'pending', orderStatus: 'PENDING PAYMENT' }
       );
-
-      // Trigger celebration confetti
-      try {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-      } catch (err) {
-        // ignore if not supported
-      }
 
       clearCart();
       setIsSubmitting(false);
-      showToast('Your order has been placed successfully in Demo Mode! 🎉', 'success');
-      setLocation(`/order-confirmation/${newOrder.orderId}`);
-    }, 900);
+
+      const itemsSummary = cart.map(i => `${i.product.name} (x${i.quantity})`).join(', ');
+      const message = `Hello GIFTORIA! I would like to confirm my order #${order.orderId}.\n\nItems: ${itemsSummary}\nTotal: ₹${grandTotal}\nDelivery to: ${customerAddress.fullName}, ${customerAddress.city} (${customerAddress.pincode})`;
+      window.open(`https://wa.me/${businessConfig.whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
+
+      showToast('WhatsApp Order requested! Redirecting to confirmation...', 'info');
+      setLocation(`/order-confirmation/${order.orderId}`);
+      return;
+    }
+
+    // Flow B: Razorpay Payment Gateway (Secure Backend Order & Cryptographic Signature Verification)
+    try {
+      setVerificationStep('Initializing secure Razorpay payment...');
+
+      // 1. Ensure Razorpay Checkout SDK is loaded
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded) {
+        throw new Error('Failed to load Razorpay SDK. Please check your network connection.');
+      }
+
+      // 2. Request backend to create Razorpay Order with trusted catalog prices
+      const createResp = await fetch('/api/create-razorpay-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cart,
+          customer: customerAddress
+        })
+      });
+
+      const orderData = await createResp.json();
+
+      if (!createResp.ok || !orderData.success) {
+        throw new Error(orderData.error || 'Failed to initialize payment order on server');
+      }
+
+      const { orderId, razorpayOrderId, amount, currency, keyId } = orderData;
+
+      // 3. Record pending order in store
+      recordPendingOrder(customerAddress, cart, subtotal, grandTotal, razorpayOrderId);
+
+      setVerificationStep('Opening Razorpay Payment Checkout...');
+
+      // 4. Configure and open Razorpay Checkout modal
+      const options = {
+        key: keyId,
+        amount: amount,
+        currency: currency || 'INR',
+        name: 'GIFTORIA Gifting Store',
+        description: `Order #${orderId}`,
+        image: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&q=80&w=200',
+        order_id: razorpayOrderId,
+        prefill: {
+          name: customerAddress.fullName,
+          email: customerAddress.email,
+          contact: customerAddress.mobile
+        },
+        notes: {
+          orderId: orderId,
+          deliveryCity: customerAddress.city,
+          pincode: customerAddress.pincode
+        },
+        theme: {
+          color: '#38BDF8' // Sky blue
+        },
+        // Handlers:
+        handler: async function (response: any) {
+          setVerificationStep('Verifying payment signature with backend...');
+
+          try {
+            // 5. CRITICAL: Server-side cryptographic signature & capture verification
+            const verifyResp = await fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                orderId,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+
+            const verifyData = await verifyResp.json();
+
+            // 6. An order is confirmed and displayed in the Admin Panel ONLY after verified by backend!
+            if (verifyResp.ok && verifyData.verified) {
+              confirmVerifiedOrder(
+                customerAddress,
+                cart,
+                subtotal,
+                0,
+                shippingFee,
+                grandTotal,
+                {
+                  orderId,
+                  razorpayOrderId: response.razorpay_order_id,
+                  razorpayPaymentId: response.razorpay_payment_id,
+                  razorpaySignature: response.razorpay_signature,
+                  paymentVerifiedAt: verifyData.paymentVerifiedAt,
+                  isTestMode: verifyData.isMock || keyId.startsWith('rzp_test_')
+                }
+              );
+
+              try {
+                confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+              } catch {
+                // ignore
+              }
+
+              clearCart();
+              setIsSubmitting(false);
+              setVerificationStep(null);
+              showToast('Payment verified successfully! 🎉', 'success');
+              setLocation(`/order-confirmation/${orderId}`);
+            } else {
+              // Signature mismatch or capture rejection
+              recordFailedOrder(orderId, verifyData.error || 'Server signature verification rejected');
+              setIsSubmitting(false);
+              setVerificationStep(null);
+              setPaymentError(verifyData.error || 'Payment signature mismatch. Order not confirmed.');
+              showToast('Payment verification failed! Order not confirmed.', 'error');
+            }
+          } catch (verifyErr: any) {
+            recordFailedOrder(orderId, verifyErr.message || 'Network error verifying payment');
+            setIsSubmitting(false);
+            setVerificationStep(null);
+            setPaymentError(`Network verification failed: ${verifyErr.message}. Reference: ${response.razorpay_payment_id}`);
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            setIsSubmitting(false);
+            setVerificationStep(null);
+            showToast('Payment window closed. Your items remain saved in cart.', 'info');
+          }
+        }
+      };
+
+      const rzpInstance = new (window as any).Razorpay(options);
+
+      rzpInstance.on('payment.failed', function (resp: any) {
+        const failureReason = resp.error?.description || 'Transaction declined by bank or user';
+        recordFailedOrder(orderId, failureReason);
+        setIsSubmitting(false);
+        setVerificationStep(null);
+        setPaymentError(`Payment Failed: ${failureReason}. Cart saved for retry.`);
+        showToast(`Payment Failed: ${failureReason}`, 'error');
+      });
+
+      rzpInstance.open();
+
+    } catch (err: any) {
+      console.error('Checkout error:', err);
+      setIsSubmitting(false);
+      setVerificationStep(null);
+      setPaymentError(err.message || 'Payment initiation error');
+      showToast(err.message || 'Payment initiation error', 'error');
+    }
   };
 
   return (
@@ -149,45 +303,59 @@ export const CheckoutPage: React.FC = () => {
         
         {/* Page Title */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Checkout & Delivery Details
+          <span className="text-xs font-bold uppercase tracking-wider text-sky-600">Secure Gifting Checkout</span>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
+            Delivery Details &amp; Payment
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Complete the delivery address and choose your convenient surprise time slot
+          <p className="text-xs text-slate-500 mt-0.5">
+            Verified Razorpay Gateway (UPI, Cards, Net Banking) • Encrypted Server Verification
           </p>
         </div>
 
-        {/* Demo Mode Notice Banner */}
-        <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-          <div>
-            <strong>Demonstration Checkout Mode:</strong> No real money or card details will be charged. This completes a simulation flow matching FNP's gifting store standards.
+        {/* Payment Error Banner if failed */}
+        {paymentError && (
+          <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-3 shadow-xs">
+            <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <strong className="block font-bold text-sm">Payment Unsuccessful</strong>
+              <p className="mt-0.5">{paymentError}</p>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Your cart contents are safe. You can check your details and retry payment immediately below.
+              </p>
+            </div>
+            <button
+              onClick={() => setPaymentError(null)}
+              className="text-xs font-bold text-rose-600 hover:underline shrink-0"
+            >
+              Dismiss
+            </button>
           </div>
-        </div>
+        )}
 
+        {/* Checkout Form */}
         <form onSubmit={handleSubmitOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* Left Form: Delivery Address & Time Slot */}
+          {/* Left Form: Delivery & Schedule */}
           <div className="lg:col-span-8 space-y-6">
             
-            {/* Step 1: Recipient Information */}
+            {/* Step 1: Customer Details */}
             <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4">
               <div className="flex items-center gap-2 pb-3 border-b border-sky-100">
                 <MapPin className="w-5 h-5 text-sky-500" />
                 <h3 className="font-bold text-slate-900 text-base">
-                  1. Delivery Address & Recipient
+                  1. Recipient &amp; Delivery Destination
                 </h3>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Recipient / Customer Full Name *
+                    Recipient Full Name *
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Rahul Sharma"
+                    placeholder="e.g. Sneha Deshmukh"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl text-xs focus:outline-none focus:border-sky-500 text-slate-800 font-medium"
@@ -196,7 +364,7 @@ export const CheckoutPage: React.FC = () => {
 
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Recipient Mobile Number *
+                    Mobile Number (10 digits) *
                   </label>
                   <input
                     type="tel"
@@ -211,7 +379,7 @@ export const CheckoutPage: React.FC = () => {
 
                 <div className="sm:col-span-2">
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Customer Email Address (for confirmation invoice) *
+                    Customer Email Address (for Razorpay payment receipt) *
                   </label>
                   <input
                     type="email"
@@ -239,12 +407,12 @@ export const CheckoutPage: React.FC = () => {
 
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    City *
+                    City (Maharashtra) *
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Mumbai, Bengaluru, Delhi"
+                    placeholder="e.g. Mumbai, Pune, Nagpur"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl text-xs focus:outline-none focus:border-sky-500 text-slate-800 font-medium"
@@ -253,7 +421,7 @@ export const CheckoutPage: React.FC = () => {
 
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    PIN Code (6 digits) *
+                    Maharashtra PIN Code (6 digits) *
                   </label>
                   <input
                     type="text"
@@ -268,12 +436,12 @@ export const CheckoutPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Step 2: Delivery Date & Slot Selection */}
+            {/* Step 2: Delivery Schedule */}
             <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4">
               <div className="flex items-center gap-2 pb-3 border-b border-sky-100">
                 <Clock className="w-5 h-5 text-sky-500" />
                 <h3 className="font-bold text-slate-900 text-base">
-                  2. Delivery Schedule & Slot Selection
+                  2. Dispatch &amp; Greeting Card Details
                 </h3>
               </div>
 
@@ -293,16 +461,16 @@ export const CheckoutPage: React.FC = () => {
 
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Time Slot *
+                    Time Window
                   </label>
                   <select
                     value={deliverySlot}
                     onChange={(e) => setDeliverySlot(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl text-xs focus:outline-none focus:border-sky-500 text-slate-800 font-medium"
                   >
-                    <option value="Standard Daytime Dispatch (9:00 AM - 6:00 PM)">Standard Daytime Dispatch (9:00 AM - 6:00 PM)</option>
-                    <option value="Morning Dispatch Window (9:00 AM - 1:00 PM)">Morning Dispatch Window (9:00 AM - 1:00 PM)</option>
-                    <option value="Afternoon Dispatch Window (1:00 PM - 6:00 PM)">Afternoon Dispatch Window (1:00 PM - 6:00 PM)</option>
+                    <option value="Standard Daytime (9:00 AM - 6:00 PM)">Standard Daytime (9:00 AM - 6:00 PM)</option>
+                    <option value="Morning Dispatch Window (9:00 AM - 1:00 PM)">Morning Window (9:00 AM - 1:00 PM)</option>
+                    <option value="Evening Dispatch Window (2:00 PM - 7:00 PM)">Evening Window (2:00 PM - 7:00 PM)</option>
                   </select>
                 </div>
 
@@ -312,7 +480,7 @@ export const CheckoutPage: React.FC = () => {
                   </label>
                   <textarea
                     rows={2}
-                    placeholder="Wishing you a magical day full of happiness, sweet moments and cherished memories!"
+                    placeholder="Wishing you a magical day full of happiness and cherishable memories!"
                     value={messageCard}
                     onChange={(e) => setMessageCard(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-sky-200 rounded-xl text-xs focus:outline-none focus:border-sky-500 text-slate-800 resize-none font-medium"
@@ -321,60 +489,75 @@ export const CheckoutPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Step 3: Payment Options (Demo Simulation) */}
+            {/* Step 3: Payment Options (Razorpay Gateway) */}
             <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4">
               <div className="flex items-center gap-2 pb-3 border-b border-sky-100">
                 <CreditCard className="w-5 h-5 text-sky-500" />
                 <h3 className="font-bold text-slate-900 text-base">
-                  3. Payment Method (Demo Mode)
+                  3. Select Payment Method
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <label className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                  paymentMethod === 'upi' ? 'border-sky-500 bg-sky-50/50 text-sky-800 font-bold' : 'border-sky-100 bg-white text-slate-700'
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label className={`p-4 rounded-2xl border-2 flex flex-col justify-between cursor-pointer transition-all ${
+                  paymentMethod === 'razorpay' ? 'border-sky-500 bg-sky-50/60 shadow-sm' : 'border-sky-100 bg-white text-slate-700'
                 }`}>
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="upi"
-                    checked={paymentMethod === 'upi'}
-                    onChange={() => setPaymentMethod('upi')}
-                    className="sr-only"
-                  />
-                  <span className="text-xs font-bold mb-1">📱 UPI / QR Code</span>
-                  <span className="text-[10px] text-slate-500">Google Pay, PhonePe, Paytm, BHIM</span>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5 font-black text-slate-900 text-sm">
+                        <Zap className="w-4 h-4 text-sky-500 fill-sky-500" />
+                        <span>Razorpay Secure Gateway</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Instant payment via UPI (GPay, PhonePe, Paytm, BHIM), Debit/Credit Cards, or Net Banking.
+                      </p>
+                    </div>
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="razorpay"
+                      checked={paymentMethod === 'razorpay'}
+                      onChange={() => setPaymentMethod('razorpay')}
+                      className="text-sky-500 focus:ring-sky-400 mt-0.5"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 mt-3 pt-2 border-t border-sky-100 text-[10px] font-bold text-sky-700">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Server-Side Verified Payment</span>
+                  </div>
                 </label>
 
-                <label className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                  paymentMethod === 'card' ? 'border-sky-500 bg-sky-50/50 text-sky-800 font-bold' : 'border-sky-100 bg-white text-slate-700'
+                <label className={`p-4 rounded-2xl border-2 flex flex-col justify-between cursor-pointer transition-all ${
+                  paymentMethod === 'whatsapp_enquiry' ? 'border-emerald-500 bg-emerald-50/50 shadow-sm' : 'border-sky-100 bg-white text-slate-700'
                 }`}>
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="card"
-                    checked={paymentMethod === 'card'}
-                    onChange={() => setPaymentMethod('card')}
-                    className="sr-only"
-                  />
-                  <span className="text-xs font-bold mb-1">💳 Card / Netbanking</span>
-                  <span className="text-[10px] text-slate-500">Visa, Mastercard, RuPay &amp; NetBanking</span>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5 font-bold text-slate-900 text-sm">
+                        <MessageCircle className="w-4 h-4 text-emerald-600" />
+                        <span>Direct WhatsApp Assistance</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Submit customized order and coordinate details directly with our store owner.
+                      </p>
+                    </div>
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="whatsapp_enquiry"
+                      checked={paymentMethod === 'whatsapp_enquiry'}
+                      onChange={() => setPaymentMethod('whatsapp_enquiry')}
+                      className="text-emerald-500 focus:ring-emerald-400 mt-0.5"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 mt-3 pt-2 border-t border-emerald-100 text-[10px] font-semibold text-emerald-700">
+                    <span>Hotline: +91 83568 29605</span>
+                  </div>
                 </label>
+              </div>
 
-                <label className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                  paymentMethod === 'whatsapp_enquiry' ? 'border-emerald-500 bg-emerald-50/50 text-emerald-800 font-bold' : 'border-sky-100 bg-white text-slate-700'
-                }`}>
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="whatsapp_enquiry"
-                    checked={paymentMethod === 'whatsapp_enquiry'}
-                    onChange={() => setPaymentMethod('whatsapp_enquiry')}
-                    className="sr-only"
-                  />
-                  <span className="text-xs font-bold mb-1">💬 Direct WhatsApp Order</span>
-                  <span className="text-[10px] text-slate-500">Confirm directly with owner</span>
-                </label>
+              <div className="text-[11px] text-slate-400 p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                <span>Cash on Delivery is disabled. Orders are confirmed only after successful payment verification.</span>
               </div>
             </div>
 
@@ -429,18 +612,33 @@ export const CheckoutPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Submit CTA */}
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-bold py-3.5 px-6 rounded-2xl shadow-md shadow-sky-200 transition-all flex items-center justify-center gap-2 text-sm active:scale-95"
+                className="w-full bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-bold py-3.5 px-6 rounded-2xl shadow-md shadow-sky-200 hover:shadow-sky-300 transition-all flex items-center justify-center gap-2 text-sm active:scale-95"
               >
-                {isSubmitting ? 'Placing Demo Order...' : 'Confirm & Place Order'}
-                <ArrowRight className="w-4 h-4" />
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>{verificationStep || 'Processing...'}</span>
+                  </>
+                ) : paymentMethod === 'razorpay' ? (
+                  <>
+                    <Zap className="w-4 h-4 fill-white" />
+                    <span>Pay ₹{grandTotal.toLocaleString('en-IN')} with Razorpay</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Confirm via WhatsApp</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
 
-              <div className="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1">
-                <Lock className="w-3.5 h-3.5 text-sky-500" />
-                <span>Encrypted Demo Order Confirmation</span>
+              <div className="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1.5 pt-1">
+                <Lock className="w-3.5 h-3.5 text-emerald-600" />
+                <span>HMAC-SHA256 Server Payment Verification</span>
               </div>
             </div>
           </div>
