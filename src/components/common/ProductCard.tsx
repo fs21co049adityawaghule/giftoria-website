@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation } from 'wouter';
-import { Heart, MessageCircle, Star, ArrowRight } from 'lucide-react';
+import { Heart, Star, ShoppingBag, Zap, Check } from 'lucide-react';
 import { Product } from '../../types';
 import { useWishlist } from '../../context/WishlistContext';
-import { businessConfig } from '../../config/businessConfig';
+import { useCart } from '../../context/CartContext';
+import { useToast } from '../../context/ToastContext';
 
 interface ProductCardProps {
   product: Product;
@@ -12,6 +13,11 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [, setLocation] = useLocation();
   const { isWishlisted, toggleWishlist } = useWishlist();
+  const { addToCart } = useCart();
+  const { showToast } = useToast();
+
+  const [isAdding, setIsAdding] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
 
   const handleCardClick = () => {
     setLocation(`/product/${product.slug}`);
@@ -22,11 +28,32 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     toggleWishlist(product);
   };
 
-  const handleWhatsAppEnquiry = (e: React.MouseEvent) => {
+  const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const message = `Hello GIFTORIA, I would like to enquire about "${product.name}" (ID: ${product.id}). Please share the customization options and details.`;
-    const url = `https://wa.me/${businessConfig.whatsappNumber}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+    if (isAdding) return;
+
+    setIsAdding(true);
+    addToCart(product, {}, 1);
+    setJustAdded(true);
+
+    setTimeout(() => {
+      setJustAdded(false);
+      setIsAdding(false);
+    }, 1200);
+  };
+
+  const handleBuyNow = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isAdding) return;
+
+    // If customization is required/supported, direct customer to product detail page to collect customization info
+    if (product.customizable) {
+      showToast(`Please specify your customization details for "${product.name}"`, 'info');
+      setLocation(`/product/${product.slug}?customize=true`);
+    } else {
+      addToCart(product, {}, 1);
+      setLocation('/checkout');
+    }
   };
 
   const wishlisted = isWishlisted(product.id);
@@ -34,10 +61,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   return (
     <div 
       onClick={handleCardClick}
-      className="group relative bg-white rounded-2xl border border-sky-100 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden cursor-pointer hover:border-sky-300"
+      className="group relative bg-white rounded-2xl border border-sky-100 shadow-xs hover:shadow-xl hover:shadow-sky-100/70 hover:-translate-y-1.5 transition-all duration-300 ease-out flex flex-col overflow-hidden cursor-pointer hover:border-sky-300 motion-reduce:hover:transform-none motion-reduce:transition-none"
     >
       {/* Top badges */}
-      <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 items-start">
+      <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 items-start pointer-events-none">
         {product.isComingSoon ? (
           <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
             Coming Soon
@@ -53,7 +80,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       <button
         onClick={handleWishlistToggle}
         aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-        className={`absolute top-3 right-3 z-10 p-2 rounded-full backdrop-blur-md transition-all duration-200 ${
+        className={`absolute top-3 right-3 z-10 p-2 rounded-full backdrop-blur-md transition-all duration-200 transform group-hover:scale-105 ${
           wishlisted 
             ? 'bg-rose-50 text-rose-500 shadow-sm' 
             : 'bg-white/80 text-slate-500 hover:text-rose-500 hover:bg-white shadow-sm'
@@ -62,17 +89,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <Heart className={`w-4 h-4 ${wishlisted ? 'fill-rose-500' : ''}`} />
       </button>
 
-      {/* Product Image */}
+      {/* Product Image with smooth 1.06 zoom on hover */}
       <div className="relative aspect-square w-full overflow-hidden bg-sky-50/50">
         <img
           src={product.thumbnail || product.images?.[0]}
           alt={product.name}
           loading="lazy"
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-350 ease-out group-hover:scale-[1.06] motion-reduce:group-hover:scale-100"
           onError={(e) => {
             (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&q=80&w=600';
           }}
         />
+        {/* Subtle hover overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/15 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       </div>
 
       {/* Product Details */}
@@ -84,7 +113,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </div>
 
           {/* Product Title */}
-          <h3 className="font-semibold text-slate-800 text-sm md:text-base line-clamp-2 leading-snug group-hover:text-sky-600 transition-colors">
+          <h3 className="font-semibold text-slate-800 text-sm md:text-base line-clamp-2 leading-snug group-hover:text-sky-600 transition-colors duration-200">
             {product.name}
           </h3>
 
@@ -94,27 +123,45 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               <span>{product.rating.toFixed(1)}</span>
               <Star className="w-3 h-3 fill-emerald-600 text-emerald-600" />
             </div>
-            <span className="text-xs text-slate-600">({product.reviewsCount})</span>
+            <span className="text-xs text-slate-500">({product.reviewsCount} reviews)</span>
           </div>
         </div>
 
-        {/* Action: Enquire on WhatsApp (NO customer prices as strictly requested in Part 5) */}
-        <div className="pt-3 mt-3 border-t border-sky-50 flex items-center justify-between gap-2">
+        {/* Action: ADD TO CART (Secondary) + BUY NOW (Primary) */}
+        <div className="pt-3 mt-3 border-t border-sky-50 grid grid-cols-2 gap-2">
           <button
-            onClick={handleWhatsAppEnquiry}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
-            aria-label="Enquire on WhatsApp"
+            type="button"
+            onClick={handleAddToCart}
+            disabled={isAdding || product.isComingSoon}
+            className={`w-full flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none ${
+              justAdded
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                : 'bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 hover:border-sky-300 shadow-xs'
+            }`}
+            aria-label={`Add ${product.name} to cart`}
           >
-            <MessageCircle className="w-3.5 h-3.5 fill-white stroke-emerald-600" />
-            <span>Enquire on WhatsApp</span>
+            {justAdded ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="truncate">Added!</span>
+              </>
+            ) : (
+              <>
+                <ShoppingBag className="w-3.5 h-3.5 text-sky-600" />
+                <span className="truncate">Add to Cart</span>
+              </>
+            )}
           </button>
-          
+
           <button
-            onClick={handleCardClick}
-            className="p-2 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-colors shrink-0"
-            title="View Details"
+            type="button"
+            onClick={handleBuyNow}
+            disabled={isAdding || product.isComingSoon}
+            className="w-full flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-600 text-white shadow-md shadow-sky-200 hover:shadow-sky-300 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none"
+            aria-label={`Buy ${product.name} now`}
           >
-            <ArrowRight className="w-4 h-4" />
+            <Zap className="w-3.5 h-3.5 fill-white text-white" />
+            <span className="truncate">Buy Now</span>
           </button>
         </div>
       </div>

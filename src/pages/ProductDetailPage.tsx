@@ -14,7 +14,7 @@ import {
   Sparkles,
   ArrowRight,
   AlertCircle,
-  MessageCircle
+  Zap
 } from 'lucide-react';
 import { INITIAL_PRODUCTS } from '../data/products';
 import { useAdmin } from '../context/AdminContext';
@@ -123,15 +123,15 @@ export const ProductDetailPage: React.FC = () => {
             
             {/* Left: Image Gallery */}
             <div className="lg:col-span-6 space-y-4">
-              <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-sky-50 border border-sky-100 shadow-inner">
+              <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-sky-50 border border-sky-100 shadow-inner group">
                 <img
                   src={product.images[selectedImage] || product.thumbnail}
                   alt={product.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-transform duration-350 ease-out group-hover:scale-[1.06] motion-reduce:group-hover:scale-100"
                 />
                 <button
                   onClick={() => toggleWishlist(product)}
-                  className={`absolute top-4 right-4 p-3 rounded-full shadow-md backdrop-blur-md transition-all ${
+                  className={`absolute top-4 right-4 p-3 rounded-full shadow-md backdrop-blur-md transition-all duration-200 transform group-hover:scale-105 ${
                     wishlisted ? 'bg-rose-50 text-rose-500' : 'bg-white/80 text-slate-600 hover:text-rose-500 hover:bg-white'
                   }`}
                   aria-label="Add to Wishlist"
@@ -147,8 +147,8 @@ export const ProductDetailPage: React.FC = () => {
                     <button
                       key={idx}
                       onClick={() => setSelectedImage(idx)}
-                      className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${
-                        selectedImage === idx ? 'border-sky-500 shadow-xs' : 'border-slate-200 opacity-70 hover:opacity-100'
+                      className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all duration-200 shrink-0 hover:scale-105 ${
+                        selectedImage === idx ? 'border-sky-500 shadow-xs ring-2 ring-sky-200' : 'border-slate-200 opacity-70 hover:opacity-100'
                       }`}
                     >
                       <img src={img} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
@@ -198,23 +198,23 @@ export const ProductDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Price Privacy Banner: Direct Quote & WhatsApp Enquiry */}
+              {/* Quality & Assurance Banner */}
               <div className="p-4 bg-sky-50/70 rounded-2xl border border-sky-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-sky-700 block">
-                    GIFTORIA Pricing
+                    GIFTORIA Assured
                   </span>
                   <span className="text-xl sm:text-2xl font-black text-slate-900">
-                    Pricing Available on Request
+                    Handcrafted Perfection
                   </span>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Handmade &amp; customized gifts are quoted based on finish, design size, and customization.
+                    Authentic materials, delicate craftsmanship, and secure doorstep delivery across Maharashtra.
                   </p>
                 </div>
                 <div className="shrink-0">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-bold shadow-xs">
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    Instant WhatsApp Quote
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500 text-white text-xs font-bold shadow-xs">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    100% Quality Guarantee
                   </span>
                 </div>
               </div>
@@ -342,27 +342,23 @@ export const ProductDetailPage: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <a
-                    href={`https://wa.me/918356829605?text=${encodeURIComponent(
-                      `Hello GIFTORIA! I would like to enquire about "${product.name}" (Quantity: ${quantity})${
-                        recipientName ? `, Recipient Name: ${recipientName}` : ''
-                      }${
-                        customMessage ? `, Custom Message: ${customMessage}` : ''
-                      }. Please share pricing and dispatch availability across Maharashtra.`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 px-6 rounded-2xl font-bold text-sm shadow-md shadow-emerald-200 transition-all active:scale-95 text-center"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    Enquire on WhatsApp
-                  </a>
                   <button
-                    onClick={handleBuyNow}
-                    className="flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 text-white py-3.5 px-6 rounded-2xl font-bold text-sm shadow-md shadow-sky-200 transition-all active:scale-95"
+                    type="button"
+                    onClick={handleAddToCart}
+                    className="flex items-center justify-center gap-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 py-3.5 px-6 rounded-2xl font-bold text-sm shadow-xs hover:border-sky-300 transition-all active:scale-95"
+                    aria-label="Add product to cart"
                   >
-                    <ShoppingBag className="w-4 h-4" />
-                    Request Custom Order
+                    <ShoppingBag className="w-4 h-4 text-sky-600" />
+                    Add to Cart
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBuyNow}
+                    className="flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 text-white py-3.5 px-6 rounded-2xl font-bold text-sm shadow-md shadow-sky-200 hover:shadow-sky-300 transition-all active:scale-95"
+                    aria-label="Buy product now"
+                  >
+                    <Zap className="w-4 h-4 fill-white" />
+                    Buy Now
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>

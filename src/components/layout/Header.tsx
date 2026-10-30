@@ -294,8 +294,8 @@ export const Header: React.FC = () => {
                             </span>
                           </div>
                         </div>
-                        <span className="text-[11px] font-bold text-emerald-600 shrink-0 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
-                          Enquire Details
+                        <span className="text-[11px] font-bold text-sky-600 shrink-0 bg-sky-50 px-2.5 py-0.5 rounded-lg border border-sky-100">
+                          View Details
                         </span>
                       </div>
                     ))}

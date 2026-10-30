@@ -2,11 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
 import { Search, Sparkles, ArrowRight, Frown, X } from 'lucide-react';
 import { INITIAL_PRODUCTS } from '../data/products';
+import { useAdmin } from '../context/AdminContext';
 import { ProductCard } from '../components/common/ProductCard';
 import { searchProducts } from '../utils/searchUtils';
 
 export const SearchPage: React.FC = () => {
   const [location, setLocation] = useLocation();
+  const { products } = useAdmin();
 
   const getQueryFromUrl = () => {
     try {
@@ -25,8 +27,9 @@ export const SearchPage: React.FC = () => {
 
   const searchResults = useMemo(() => {
     if (!query.trim()) return [];
-    return searchProducts(INITIAL_PRODUCTS, query);
-  }, [query]);
+    const catalog = products && products.length > 0 ? products : INITIAL_PRODUCTS;
+    return searchProducts(catalog, query);
+  }, [query, products]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
