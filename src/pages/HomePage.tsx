@@ -122,14 +122,14 @@ export const HomePage: React.FC = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {CATEGORIES_LIST.map((category) => (
             <Link
               key={category.id}
-              href={`/products?category=${encodeURIComponent(category.name)}`}
+              href={`/category/${category.slug}`}
               className="group bg-white rounded-2xl p-3 border border-sky-100 hover:border-sky-300 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col items-center text-center"
             >
-              <div className="w-20 h-20 rounded-2xl overflow-hidden mb-3 bg-sky-50">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden mb-2.5 bg-sky-50">
                 <img
                   src={category.image}
                   alt={category.name}
@@ -200,11 +200,10 @@ export const HomePage: React.FC = () => {
               </p>
 
               <div className="flex items-center justify-between pt-4 mt-2 border-t border-white/20">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-black text-white">₹{featuredTrendingProduct.price}</span>
-                  {featuredTrendingProduct.compareAtPrice && (
-                    <span className="text-xs text-sky-200 line-through">₹{featuredTrendingProduct.compareAtPrice}</span>
-                  )}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs sm:text-sm font-bold text-sky-200 bg-white/10 px-3 py-1 rounded-lg">
+                    Price Available on Enquiry
+                  </span>
                 </div>
 
                 <button
@@ -246,7 +245,7 @@ export const HomePage: React.FC = () => {
                         {item.category}
                       </span>
                       <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
-                      <span className="text-xs font-black text-slate-900">₹{item.price}</span>
+                      <span className="text-[11px] font-semibold text-sky-600">Details on Request</span>
                     </div>
                   </div>
 

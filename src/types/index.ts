@@ -9,12 +9,14 @@ export type ProductCategory =
   | 'Birthday Gifts'
   | 'Anniversary Gifts'
   | 'Jewellery'
+  | 'Frames'
   | string;
 
 export interface ProductVariant {
   id: string;
   name: string;
   price: number;
+  costPrice?: number;
   compareAtPrice?: number;
   inStock: boolean;
 }
@@ -26,6 +28,10 @@ export interface CustomizationData {
   selectedVariant?: string;
   selectedSize?: string;
   selectedColor?: string;
+  mobileModel?: string;
+  tshirtSize?: string;
+  printDesign?: string;
+  referenceImages?: string[];
   deliveryDate?: string;
   deliverySlot?: string;
   uploadedFileName?: string;
@@ -44,13 +50,15 @@ export interface Product {
   service?: string;
   serviceName?: string;
   description: string;
-  price: number;
+  price: number; // Selling price (managed by admin, confidential from public display)
+  costPrice: number; // Internal making/acquisition cost (NEVER exposed to customer)
   compareAtPrice?: number;
   currency: string;
   images: string[];
   thumbnail: string;
   customizable?: boolean;
   customizationType?: string;
+  customizationInstructions?: string;
   availableSizes?: string[];
   availableColors?: string[];
   availableVariants?: ProductVariant[];
@@ -66,10 +74,13 @@ export interface Product {
   deliveryLabel: string;
   isExpress?: boolean;
   isSameDay?: boolean;
+  isStartingPrice?: boolean; // For products like 3D Couple Statues "Starting from ₹850"
+  startingPriceAmount?: number;
   occasion?: string;
   createdAt?: string;
   updatedAt?: string;
   isComingSoon?: boolean;
+  isActive?: boolean; // Visible on customer site if true
 }
 
 export interface CartItem {
@@ -78,6 +89,8 @@ export interface CartItem {
   quantity: number;
   customization: CustomizationData;
   addedAt: number;
+  unitPriceSnapshot?: number; // Snapshot of selling price
+  unitCostSnapshot?: number; // Snapshot of cost price
 }
 
 export interface ShippingAddress {
@@ -94,21 +107,97 @@ export interface ShippingAddress {
   messageCard?: string;
 }
 
-export type PaymentMethod = 'upi' | 'card' | 'netbanking' | 'cod';
-export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'demo_success' | 'test_mode_success';
-export type OrderStatus = 'Confirmed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
+export type PaymentMethod = 'upi' | 'card' | 'netbanking' | 'whatsapp_enquiry' | 'online_gateway';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+export type OrderStatus = 
+  | 'New Order'
+  | 'Confirmed'
+  | 'Customization Pending'
+  | 'In Production'
+  | 'Ready for Dispatch'
+  | 'Dispatched'
+  | 'Out for Delivery'
+  | 'Delivered'
+  | 'Cancelled';
+
+export const ORDER_STATUSES: OrderStatus[] = [
+  'New Order',
+  'Confirmed',
+  'Customization Pending',
+  'In Production',
+  'Ready for Dispatch',
+  'Dispatched',
+  'Out for Delivery',
+  'Delivered',
+  'Cancelled'
+];
+
+export type DeliveryStatus =
+  | 'Not Dispatched'
+  | 'Ready for Dispatch'
+  | 'Dispatched'
+  | 'In Transit'
+  | 'Out for Delivery'
+  | 'Delivered'
+  | 'Delivery Attempt Failed'
+  | 'Returned';
+
+export const DELIVERY_STATUSES: DeliveryStatus[] = [
+  'Not Dispatched',
+  'Ready for Dispatch',
+  'Dispatched',
+  'In Transit',
+  'Out for Delivery',
+  'Delivered',
+  'Delivery Attempt Failed',
+  'Returned'
+];
+
+export interface DeliveryRecord {
+  orderId: string;
+  customerName: string;
+  customerPhone: string;
+  productSummary: string;
+  quantity: number;
+  deliveryAddress: string;
+  pincode: string;
+  dispatchDate?: string;
+  expectedDeliveryDate?: string;
+  courierPartner?: string;
+  trackingId?: string;
+  trackingUrl?: string;
+  deliveryStatus: DeliveryStatus;
+  adminNotes?: string;
+  updatedAt: string;
+}
+
+export interface OrderItemSnapshot {
+  productId: string;
+  productName: string;
+  category: string;
+  quantity: number;
+  sellingPriceSnapshot: number;
+  costPriceSnapshot: number;
+  itemProfit: number;
+  customization?: CustomizationData;
+  thumbnail?: string;
+}
 
 export interface Order {
   orderId: string;
   customer: ShippingAddress;
   items: CartItem[];
+  itemSnapshots?: OrderItemSnapshot[]; // Historical snapshots
   subtotal: number;
   discount: number;
   shippingFee: number;
+  directExpenses?: number; // Direct expenses e.g. packaging/courier
   grandTotal: number;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   orderStatus: OrderStatus;
+  deliveryRecord?: DeliveryRecord;
+  adminNotes?: string;
   isTestMode: boolean;
   createdAt: string;
   updatedAt: string;

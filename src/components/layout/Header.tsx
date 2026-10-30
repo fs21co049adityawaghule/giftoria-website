@@ -14,19 +14,22 @@ import {
   Sparkles,
   MessageCircle,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  ShieldCheck
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
-import { CATEGORIES_LIST, INITIAL_PRODUCTS } from '../../data/products';
+import { useAdmin } from '../../context/AdminContext';
+import { CATEGORIES_LIST } from '../../data/products';
 import { businessConfig } from '../../config/businessConfig';
 import { searchProducts } from '../../utils/searchUtils';
-import { validateMaharashtraPincode, DEFAULT_PINCODE, DEFAULT_PINCODE_LABEL } from '../../utils/pincodeUtils';
+import { validateMaharashtraPincode, DEFAULT_PINCODE_LABEL } from '../../utils/pincodeUtils';
 
 export const Header: React.FC = () => {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { cartCount } = useCart();
   const { wishlistCount } = useWishlist();
+  const { products } = useAdmin();
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,11 +49,11 @@ export const Header: React.FC = () => {
   // Mobile menu state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Suggestions search logic
+  // Suggestions search logic (NO prices shown in suggestions per Part 5)
   const searchSuggestions = React.useMemo(() => {
     if (!searchQuery.trim() || searchQuery.trim().length < 2) return [];
-    return searchProducts(INITIAL_PRODUCTS, searchQuery).slice(0, 5);
-  }, [searchQuery]);
+    return searchProducts(products, searchQuery).slice(0, 5);
+  }, [searchQuery, products]);
 
   // Handle outside click to close suggestions
   useEffect(() => {
@@ -96,12 +99,7 @@ export const Header: React.FC = () => {
 
     const result = validateMaharashtraPincode(tempPincode);
 
-    if (!result.isValid) {
-      setPincodeError(result.message);
-      return;
-    }
-
-    if (!result.isMaharashtra) {
+    if (!result.isValid || !result.isMaharashtra) {
       setPincodeError(result.message);
       return;
     }
@@ -115,6 +113,36 @@ export const Header: React.FC = () => {
       setIsPincodeModalOpen(false);
       setPincodeSuccess(null);
     }, 1200);
+  };
+
+  // Helper to determine active category from URL
+  const isCategoryActive = (slug: string) => {
+    if (location === `/category/${slug}`) return true;
+    try {
+      const search = window.location.search;
+      const params = new URLSearchParams(search);
+      const catParam = params.get('category');
+      const matched = CATEGORIES_LIST.find(c => c.slug === slug);
+      if (matched && catParam && catParam.toLowerCase() === matched.name.toLowerCase()) {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+    return false;
+  };
+
+  const isAllGiftsActive = () => {
+    if (location === '/products' || location === '/category/all') {
+      try {
+        const search = window.location.search;
+        const params = new URLSearchParams(search);
+        return !params.get('category') || params.get('category') === 'All';
+      } catch {
+        return true;
+      }
+    }
+    return false;
   };
 
   return (
@@ -143,13 +171,14 @@ export const Header: React.FC = () => {
                 <MessageCircle className="w-3.5 h-3.5 text-emerald-300" />
                 <span>WhatsApp: {businessConfig.rawPhone}</span>
               </a>
-              <a 
-                href={`tel:${businessConfig.supportPhone.replace(/\s+/g, '')}`} 
-                className="hidden md:flex items-center gap-1 hover:text-white transition-colors"
+              <Link 
+                href="/admin" 
+                className="hidden md:flex items-center gap-1 bg-white/15 hover:bg-white/25 px-2 py-0.5 rounded text-[10px] font-bold text-white transition-colors"
+                title="Admin Portal"
               >
-                <Phone className="w-3.5 h-3.5" />
-                {businessConfig.supportPhoneDisplay}
-              </a>
+                <ShieldCheck className="w-3 h-3 text-amber-300" />
+                Admin Panel
+              </Link>
             </div>
           </div>
         </div>
@@ -207,7 +236,7 @@ export const Header: React.FC = () => {
             <form onSubmit={handleSearchSubmit} className="relative">
               <input
                 type="text"
-                placeholder="Search mugs, 3D printed, keychains, flowers, jewellery..."
+                placeholder="Search mugs, 3D printed, keychains, frames, t-shirts..."
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -237,7 +266,7 @@ export const Header: React.FC = () => {
               </button>
             </form>
 
-            {/* Suggestions Dropdown */}
+            {/* Suggestions Dropdown (NO price displayed) */}
             {showSuggestions && searchQuery.trim().length >= 2 && (
               <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl border border-sky-100 shadow-xl overflow-hidden z-50">
                 {searchSuggestions.length > 0 ? (
@@ -250,22 +279,24 @@ export const Header: React.FC = () => {
                       <div
                         key={prod.id}
                         onClick={() => handleSelectSuggestion(prod.slug)}
-                        className="p-3 flex items-center gap-3 hover:bg-sky-50/70 cursor-pointer transition-colors"
+                        className="p-3 flex items-center justify-between gap-3 hover:bg-sky-50/70 cursor-pointer transition-colors"
                       >
-                        <img
-                          src={prod.thumbnail || prod.images[0]}
-                          alt={prod.name}
-                          className="w-10 h-10 rounded-lg object-cover bg-sky-50 border border-sky-100 shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-slate-800 truncate">{prod.name}</p>
-                          <span className="text-[10px] text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded">
-                            {prod.category}
-                          </span>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <img
+                            src={prod.thumbnail || prod.images?.[0]}
+                            alt={prod.name}
+                            className="w-10 h-10 rounded-lg object-cover bg-sky-50 border border-sky-100 shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-800 truncate">{prod.name}</p>
+                            <span className="text-[10px] text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded">
+                              {prod.category}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-xs font-black text-slate-900 shrink-0">
-                          ₹{prod.price}
-                        </div>
+                        <span className="text-[11px] font-bold text-emerald-600 shrink-0 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+                          Enquire Details
+                        </span>
                       </div>
                     ))}
                     <div className="p-2.5 text-center bg-slate-50">
@@ -281,7 +312,7 @@ export const Header: React.FC = () => {
                   <div className="p-5 text-center text-xs text-slate-500">
                     <p className="font-semibold text-slate-700">No matching gifts found for "{searchQuery}"</p>
                     <p className="text-[11px] text-slate-400 mt-1">
-                      Try searching for "mug", "keychain", "3d printed", "flowers", or "photo frame".
+                      Try searching for "mug", "keychain", "3d printed", "frames", or "t-shirt".
                     </p>
                   </div>
                 )}
@@ -316,7 +347,7 @@ export const Header: React.FC = () => {
             <Link 
               href="/cart" 
               className="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white px-3.5 py-2 rounded-full font-semibold text-xs transition-transform active:scale-95 shadow-sm shadow-sky-200"
-              title="Shopping Cart"
+              title="Enquiry / Order Cart"
             >
               <div className="relative">
                 <ShoppingBag className="w-4 h-4" />
@@ -336,7 +367,7 @@ export const Header: React.FC = () => {
           <form onSubmit={handleSearchSubmit} className="relative">
             <input
               type="text"
-              placeholder="Search mugs, keychains, flowers, 3D..."
+              placeholder="Search mugs, keychains, 3D, frames..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -374,18 +405,22 @@ export const Header: React.FC = () => {
                     <div
                       key={prod.id}
                       onClick={() => handleSelectSuggestion(prod.slug)}
-                      className="p-2.5 flex items-center gap-2.5 hover:bg-sky-50 cursor-pointer"
+                      className="p-2.5 flex items-center justify-between gap-2.5 hover:bg-sky-50 cursor-pointer"
                     >
-                      <img
-                        src={prod.thumbnail || prod.images[0]}
-                        alt={prod.name}
-                        className="w-8 h-8 rounded-lg object-cover bg-sky-50 border border-sky-100 shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-slate-800 truncate">{prod.name}</p>
-                        <span className="text-[10px] text-sky-600">{prod.category}</span>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img
+                          src={prod.thumbnail || prod.images?.[0]}
+                          alt={prod.name}
+                          className="w-8 h-8 rounded-lg object-cover bg-sky-50 border border-sky-100 shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-slate-800 truncate">{prod.name}</p>
+                          <span className="text-[10px] text-sky-600">{prod.category}</span>
+                        </div>
                       </div>
-                      <span className="text-xs font-bold text-slate-900 shrink-0">₹{prod.price}</span>
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                        Enquire
+                      </span>
                     </div>
                   ))}
                   <div className="p-2 text-center bg-slate-50">
@@ -406,26 +441,39 @@ export const Header: React.FC = () => {
           )}
         </div>
 
-        {/* C. Category Navigation Bar (7 Specific Categories) */}
+        {/* C. Category Navigation Bar (All Gifts + 8 Categories including Frames) */}
+        {/* Strictly responsive 1-click redirect with clean URLs & highlight per Part 2 */}
         <div className="bg-sky-50/70 border-t border-sky-100 overflow-x-auto no-scrollbar">
-          <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 md:gap-3 py-2 whitespace-nowrap">
+          <div className="max-w-7xl mx-auto px-4 flex items-center gap-1.5 md:gap-2.5 py-2 whitespace-nowrap">
             <Link 
               href="/products" 
-              className="text-xs font-bold text-sky-700 hover:text-sky-900 px-2.5 py-1 rounded-lg hover:bg-sky-100/80 transition-colors flex items-center gap-1"
+              className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 ${
+                isAllGiftsActive()
+                  ? 'bg-sky-500 text-white shadow-sm shadow-sky-200'
+                  : 'text-sky-700 hover:text-sky-900 hover:bg-sky-100/80'
+              }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+              <Sparkles className="w-3.5 h-3.5" />
               All Gifts
             </Link>
-            {CATEGORIES_LIST.map((category) => (
-              <Link
-                key={category.id}
-                href={`/products?category=${encodeURIComponent(category.name)}`}
-                className="text-xs font-semibold text-slate-700 hover:text-sky-600 hover:bg-white px-2.5 py-1 rounded-lg transition-all"
-                title={category.description}
-              >
-                {category.name}
-              </Link>
-            ))}
+
+            {CATEGORIES_LIST.map((category) => {
+              const active = isCategoryActive(category.slug);
+              return (
+                <Link
+                  key={category.id}
+                  href={`/category/${category.slug}`}
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-xl transition-all ${
+                    active
+                      ? 'bg-sky-500 text-white font-bold shadow-sm shadow-sky-200'
+                      : 'text-slate-700 hover:text-sky-600 hover:bg-white'
+                  }`}
+                  title={category.description}
+                >
+                  {category.name}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </header>
@@ -472,30 +520,46 @@ export const Header: React.FC = () => {
               <Link
                 href="/products"
                 onClick={() => setMobileMenuOpen(false)}
-                className="block px-3 py-2 text-sm font-bold text-sky-600 hover:bg-sky-50 rounded-lg"
+                className={`block px-3 py-2 text-sm font-bold rounded-lg ${
+                  isAllGiftsActive() ? 'bg-sky-500 text-white' : 'text-sky-600 hover:bg-sky-50'
+                }`}
               >
-                🎁 Explore All Products
+                🎁 All Gifts Catalog
               </Link>
-              {CATEGORIES_LIST.map((category) => (
-                <Link
-                  key={category.id}
-                  href={`/products?category=${encodeURIComponent(category.name)}`}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex flex-col px-3 py-2 text-sm font-medium text-slate-700 hover:bg-sky-50 hover:text-sky-600 rounded-lg"
-                >
-                  <div className="flex items-center justify-between">
-                    <span>{category.name}</span>
-                    <span className="text-[10px] text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded">
-                      {category.count}
-                    </span>
-                  </div>
-                  {category.name === 'Forever Blooms' && (
-                    <span className="text-[10px] text-slate-400">Handcrafted flowers that last</span>
-                  )}
-                </Link>
-              ))}
+
+              {CATEGORIES_LIST.map((category) => {
+                const active = isCategoryActive(category.slug);
+                return (
+                  <Link
+                    key={category.id}
+                    href={`/category/${category.slug}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex flex-col px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      active
+                        ? 'bg-sky-500 text-white font-bold'
+                        : 'text-slate-700 hover:bg-sky-50 hover:text-sky-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>{category.name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                        active ? 'bg-white/20 text-white' : 'text-sky-600 bg-sky-50'
+                      }`}>
+                        {category.count}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
 
               <div className="pt-4 border-t border-sky-100 mt-4 space-y-1">
+                <Link
+                  href="/admin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-3 py-2 text-sm font-bold text-amber-700 bg-amber-50 rounded-lg"
+                >
+                  🛡️ Admin Dashboard
+                </Link>
                 <Link
                   href="/account"
                   onClick={() => setMobileMenuOpen(false)}
@@ -523,13 +587,6 @@ export const Header: React.FC = () => {
                   className="block px-3 py-2 text-sm text-slate-600 hover:bg-sky-50 rounded-lg"
                 >
                   ❓ FAQs
-                </Link>
-                <Link
-                  href="/shipping"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2 text-sm text-slate-600 hover:bg-sky-50 rounded-lg"
-                >
-                  🚚 Delivery & Shipping
                 </Link>
                 <a
                   href={businessConfig.whatsappUrl}

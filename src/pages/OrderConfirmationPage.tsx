@@ -143,27 +143,48 @@ export const OrderConfirmationPage: React.FC = () => {
           {/* Items */}
           <div className="space-y-3">
             <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-400">
-              Purchased Items ({order.items.length})
+              Purchased Items ({order.items.length || order.itemSnapshots?.length || 0})
             </h4>
             <div className="divide-y divide-sky-50">
-              {order.items.map((item) => (
-                <div key={item.cartItemId} className="py-2.5 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={item.product.thumbnail || item.product.images[0]}
-                      alt={item.product.name}
-                      className="w-12 h-12 rounded-xl object-cover bg-sky-50"
-                    />
-                    <div>
-                      <p className="font-semibold text-slate-800">{item.product.name}</p>
-                      <span className="text-slate-500 text-[11px]">Quantity: {item.quantity}</span>
+              {order.items && order.items.length > 0 ? (
+                order.items.map((item) => (
+                  <div key={item.cartItemId} className="py-2.5 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={item.product.thumbnail || item.product.images[0]}
+                        alt={item.product.name}
+                        className="w-12 h-12 rounded-xl object-cover bg-sky-50"
+                      />
+                      <div>
+                        <p className="font-semibold text-slate-800">{item.product.name}</p>
+                        <span className="text-slate-500 text-[11px]">Quantity: {item.quantity}</span>
+                      </div>
                     </div>
+                    <span className="font-bold text-slate-900">
+                      ₹{(item.product.price * item.quantity).toLocaleString('en-IN')}
+                    </span>
                   </div>
-                  <span className="font-bold text-slate-900">
-                    ₹{(item.product.price * item.quantity).toLocaleString('en-IN')}
-                  </span>
-                </div>
-              ))}
+                ))
+              ) : (
+                order.itemSnapshots?.map((snap, idx) => (
+                  <div key={idx} className="py-2.5 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={snap.thumbnail || 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=600'}
+                        alt={snap.productName}
+                        className="w-12 h-12 rounded-xl object-cover bg-sky-50"
+                      />
+                      <div>
+                        <p className="font-semibold text-slate-800">{snap.productName}</p>
+                        <span className="text-slate-500 text-[11px]">Quantity: {snap.quantity}</span>
+                      </div>
+                    </div>
+                    <span className="font-bold text-slate-900">
+                      ₹{(snap.sellingPriceSnapshot * snap.quantity).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

@@ -1,17 +1,25 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { INITIAL_PRODUCTS, CATEGORIES_LIST, OCCASIONS_LIST } from '../data/products';
+import { useAdmin } from '../context/AdminContext';
+import { CATEGORIES_LIST, OCCASIONS_LIST } from '../data/products';
 import { ProductCard } from '../components/common/ProductCard';
-import { Filter, SlidersHorizontal, ArrowUpDown, Sparkles } from 'lucide-react';
+import { Filter, SlidersHorizontal, Sparkles, MessageCircle, HeartHandshake } from 'lucide-react';
+import { businessConfig } from '../config/businessConfig';
 
-// Map pathnames or query parameters to clean category names
 function resolveCategoryFromPath(pathname: string, searchParam: string | null): string {
   if (searchParam) return searchParam;
 
   const lower = pathname.toLowerCase();
+  if (lower.startsWith('/category/')) {
+    const slug = lower.replace('/category/', '').trim();
+    const matched = CATEGORIES_LIST.find(c => c.slug === slug);
+    if (matched) return matched.name;
+  }
+
   if (lower.includes('personalized')) return 'Personalized Gifts';
   if (lower.includes('3d') || lower.includes('arts')) return '3D Arts';
-  if (lower.includes('forever') || lower.includes('bloom') || lower.includes('flower')) return 'Forever Blooms';
+  if (lower.includes('frame')) return 'Frames';
+  if (lower.includes('forever') || lower.includes('bloom')) return 'Forever Blooms';
   if (lower.includes('hamper')) return 'Gift Hampers';
   if (lower.includes('birthday')) return 'Birthday Gifts';
   if (lower.includes('anniversary')) return 'Anniversary Gifts';
@@ -22,8 +30,8 @@ function resolveCategoryFromPath(pathname: string, searchParam: string | null): 
 
 export const ShopPage: React.FC = () => {
   const [location] = useLocation();
+  const { products } = useAdmin();
 
-  // Helper to read query params reactively
   const getParam = (key: string) => {
     try {
       const search = window.location.search;
@@ -44,8 +52,9 @@ export const ShopPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<string>('featured');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
-  // Sync state whenever URL or route changes
+  // Sync state on location change
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     const cat = resolveCategoryFromPath(location, getParam('category'));
     setSelectedCategory(cat);
 
@@ -58,13 +67,15 @@ export const ShopPage: React.FC = () => {
 
   // Robust normalized category filter
   const filteredProducts = useMemo(() => {
-    return INITIAL_PRODUCTS.filter((product) => {
+    // Only display active products on customer site
+    const activeCatalog = products.filter(p => p.isActive !== false);
+
+    return activeCatalog.filter((product) => {
       if (selectedCategory !== 'All') {
         const prodCat = product.category.toLowerCase().replace(/[^\w]/g, '');
         const selCat = selectedCategory.toLowerCase().replace(/[^\w]/g, '');
         if (prodCat !== selCat) {
-          // Check if category tag matches
-          const matchTag = product.tags.some(t => t.toLowerCase().includes(selCat));
+          const matchTag = product.tags?.some(t => t.toLowerCase().includes(selCat));
           if (!matchTag) return false;
         }
       }
@@ -77,14 +88,12 @@ export const ShopPage: React.FC = () => {
 
       return true;
     }).sort((a, b) => {
-      if (sortBy === 'price-low') return a.price - b.price;
-      if (sortBy === 'price-high') return b.price - a.price;
       if (sortBy === 'rating') return b.rating - a.rating;
       if (sortBy === 'bestseller') return (b.bestSeller ? 1 : 0) - (a.bestSeller ? 1 : 0);
       if (sortBy === 'trending') return (b.trending ? 1 : 0) - (a.trending ? 1 : 0);
       return 0; // default featured
     });
-  }, [selectedCategory, selectedOccasion, sortBy]);
+  }, [products, selectedCategory, selectedOccasion, sortBy]);
 
   const resetFilters = () => {
     setSelectedCategory('All');
@@ -92,7 +101,6 @@ export const ShopPage: React.FC = () => {
     setSortBy('featured');
   };
 
-  // Get active category metadata
   const currentCategoryMeta = CATEGORIES_LIST.find(
     c => c.name.toLowerCase() === selectedCategory.toLowerCase()
   );
@@ -107,28 +115,27 @@ export const ShopPage: React.FC = () => {
             <span>Home</span>
             <span>/</span>
             <span className="text-sky-600 font-semibold">
-              {selectedCategory === 'All' ? 'All Gift Catalog' : selectedCategory}
+              {selectedCategory === 'All' ? 'All Gifts Catalog' : selectedCategory}
             </span>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                {selectedCategory === 'All' ? 'All Curated Gifts' : selectedCategory}
+                {selectedCategory === 'All' ? 'All Gifts' : selectedCategory}
               </h1>
               
-              {/* Specific subtitle for Forever Blooms as requested */}
               {selectedCategory === 'Forever Blooms' ? (
                 <p className="text-xs font-semibold text-sky-600 mt-1">
-                  Handcrafted flowers that last — handmade crochet, satin ribbon, paper and artificial bouquets.
+                  Handcrafted flowers that last — handmade crochet, satin ribbon, paper and everlasting bouquets.
                 </p>
               ) : currentCategoryMeta?.description ? (
                 <p className="text-xs text-slate-500 mt-1">
-                  {currentCategoryMeta.description} • Showing {filteredProducts.length} items
+                  {currentCategoryMeta.description} • {filteredProducts.length} items available
                 </p>
               ) : (
                 <p className="text-xs text-slate-500 mt-1">
-                  Showing {filteredProducts.length} curated gift items
+                  Showing {filteredProducts.length} approved gift items
                 </p>
               )}
             </div>
@@ -140,11 +147,10 @@ export const ShopPage: React.FC = () => {
                 className="lg:hidden flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-sky-200 text-xs font-bold text-slate-700 shadow-xs"
               >
                 <SlidersHorizontal className="w-4 h-4 text-sky-500" />
-                Filters
+                Categories & Filters
               </button>
 
               <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-sky-200 text-xs font-medium shadow-xs">
-                <ArrowUpDown className="w-3.5 h-3.5 text-sky-500" />
                 <span className="text-slate-500 hidden sm:inline">Sort:</span>
                 <select
                   value={sortBy}
@@ -155,8 +161,6 @@ export const ShopPage: React.FC = () => {
                   <option value="bestseller">Best Sellers</option>
                   <option value="trending">Trending Now</option>
                   <option value="rating">Highest Rated</option>
-                  <option value="price-low">Price: Low to High</option>
-                  <option value="price-high">Price: High to Low</option>
                 </select>
               </div>
             </div>
@@ -171,7 +175,7 @@ export const ShopPage: React.FC = () => {
             <div className="flex items-center justify-between pb-3 border-b border-sky-100">
               <div className="flex items-center gap-2">
                 <Filter className="w-4 h-4 text-sky-500" />
-                <h3 className="font-bold text-slate-900 text-sm">Refine Gifts</h3>
+                <h3 className="font-bold text-slate-900 text-sm">Browse Categories</h3>
               </div>
               {(selectedCategory !== 'All' || selectedOccasion !== 'All') && (
                 <button
@@ -183,40 +187,40 @@ export const ShopPage: React.FC = () => {
               )}
             </div>
 
-            {/* Categories Filter (The 7 Exact Categories) */}
+            {/* Categories Filter (The Exact 8 Categories + All Gifts) */}
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">
-                Categories
-              </h4>
               <div className="space-y-1">
                 <button
                   onClick={() => setSelectedCategory('All')}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                  className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                     selectedCategory === 'All'
-                      ? 'bg-sky-500 text-white font-bold'
-                      : 'text-slate-600 hover:bg-sky-50 hover:text-sky-600'
+                      ? 'bg-sky-500 text-white shadow-sm shadow-sky-200'
+                      : 'text-slate-700 hover:bg-sky-50 hover:text-sky-600'
                   }`}
                 >
-                  All Gifts ({INITIAL_PRODUCTS.length})
+                  All Gifts ({products.filter(p => p.isActive !== false).length})
                 </button>
+
                 {CATEGORIES_LIST.map((cat) => {
-                  const count = INITIAL_PRODUCTS.filter(p => p.category === cat.name).length;
+                  const count = products.filter(
+                    p => p.isActive !== false && p.category.toLowerCase() === cat.name.toLowerCase()
+                  ).length;
                   const isSelected = selectedCategory.toLowerCase() === cat.name.toLowerCase();
                   return (
                     <button
                       key={cat.id}
                       onClick={() => setSelectedCategory(cat.name)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                         isSelected
-                          ? 'bg-sky-500 text-white font-bold'
-                          : 'text-slate-600 hover:bg-sky-50 hover:text-sky-600'
+                          ? 'bg-sky-500 text-white shadow-sm shadow-sky-200'
+                          : 'text-slate-700 hover:bg-sky-50 hover:text-sky-600'
                       }`}
                     >
                       <span>{cat.name}</span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
                         isSelected ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-500'
                       }`}>
-                        {count}
+                        {count > 0 ? count : 'Soon'}
                       </span>
                     </button>
                   );
@@ -256,25 +260,57 @@ export const ShopPage: React.FC = () => {
               </div>
             </div>
 
+            {/* WhatsApp Custom Enquiry Box */}
+            <div className="pt-3 border-t border-sky-100">
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900 space-y-2">
+                <p className="font-bold flex items-center gap-1">
+                  <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                  Looking for custom order?
+                </p>
+                <p className="text-[11px] text-emerald-700">
+                  Chat directly with our design team on WhatsApp for bulk or unique requirements.
+                </p>
+                <a
+                  href={businessConfig.whatsappUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block text-center font-bold text-white bg-emerald-600 hover:bg-emerald-700 py-1.5 rounded-lg text-xs transition-colors"
+                >
+                  WhatsApp Us
+                </a>
+              </div>
+            </div>
+
           </aside>
 
           {/* Product Grid Area */}
           <div className="lg:col-span-3">
             {filteredProducts.length === 0 ? (
-              <div className="bg-white rounded-2xl p-12 text-center border border-sky-100 shadow-xs max-w-lg mx-auto">
-                <div className="w-16 h-16 rounded-full bg-sky-50 text-sky-500 mx-auto flex items-center justify-center mb-4">
+              <div className="bg-white rounded-3xl p-12 text-center border border-sky-100 shadow-xs max-w-lg mx-auto space-y-4">
+                <div className="w-16 h-16 rounded-full bg-sky-50 text-sky-500 mx-auto flex items-center justify-center">
                   <Sparkles className="w-8 h-8" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800">No gifts found in this category</h3>
-                <p className="text-xs text-slate-500 mt-1 mb-6">
-                  Try clearing your filters or explore our other collections.
+                <h3 className="text-lg font-bold text-slate-800">Products Coming Soon</h3>
+                <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
+                  New handcrafted creations for <strong>{selectedCategory}</strong> are currently being curated and will be listed here soon.
                 </p>
-                <button
-                  onClick={resetFilters}
-                  className="bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition-all"
-                >
-                  View All Gifts
-                </button>
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <button
+                    onClick={resetFilters}
+                    className="w-full sm:w-auto bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition-all"
+                  >
+                    View All Active Gifts
+                  </button>
+                  <a
+                    href={businessConfig.whatsappUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    Enquire Custom Order
+                  </a>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
@@ -298,7 +334,7 @@ export const ShopPage: React.FC = () => {
               <h3 className="font-bold text-slate-900">Select Category</h3>
               <button 
                 onClick={() => setMobileFilterOpen(false)}
-                className="text-slate-500 p-1"
+                className="text-slate-500 p-1 text-base font-bold"
               >
                 ✕
               </button>

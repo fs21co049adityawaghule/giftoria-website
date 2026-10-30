@@ -15,7 +15,7 @@ import {
 import { useCart } from '../context/CartContext';
 import { useOrder } from '../context/OrderContext';
 import { useToast } from '../context/ToastContext';
-import { ShippingAddress } from '../types';
+import { ShippingAddress, PaymentMethod } from '../types';
 import { businessConfig } from '../config/businessConfig';
 import { validateMaharashtraPincode } from '../utils/pincodeUtils';
 import confetti from 'canvas-confetti';
@@ -42,8 +42,8 @@ export const CheckoutPage: React.FC = () => {
   const [deliverySlot, setDeliverySlot] = useState('Standard Daytime (9:00 AM - 6:00 PM)');
   const [messageCard, setMessageCard] = useState('');
 
-  // Payment method selection (Demo mode)
-  const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'cod'>('upi');
+  // Payment method selection (COD removed entirely as per business requirements)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('upi');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (cart.length === 0) {
@@ -343,7 +343,7 @@ export const CheckoutPage: React.FC = () => {
                     className="sr-only"
                   />
                   <span className="text-xs font-bold mb-1">📱 UPI / QR Code</span>
-                  <span className="text-[10px] text-slate-500">Google Pay, PhonePe, Paytm</span>
+                  <span className="text-[10px] text-slate-500">Google Pay, PhonePe, Paytm, BHIM</span>
                 </label>
 
                 <label className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
@@ -357,23 +357,23 @@ export const CheckoutPage: React.FC = () => {
                     onChange={() => setPaymentMethod('card')}
                     className="sr-only"
                   />
-                  <span className="text-xs font-bold mb-1">💳 Credit / Debit Card</span>
-                  <span className="text-[10px] text-slate-500">Visa, Mastercard, RuPay</span>
+                  <span className="text-xs font-bold mb-1">💳 Card / Netbanking</span>
+                  <span className="text-[10px] text-slate-500">Visa, Mastercard, RuPay &amp; NetBanking</span>
                 </label>
 
                 <label className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                  paymentMethod === 'cod' ? 'border-sky-500 bg-sky-50/50 text-sky-800 font-bold' : 'border-sky-100 bg-white text-slate-700'
+                  paymentMethod === 'whatsapp_enquiry' ? 'border-emerald-500 bg-emerald-50/50 text-emerald-800 font-bold' : 'border-sky-100 bg-white text-slate-700'
                 }`}>
                   <input
                     type="radio"
                     name="payment"
-                    value="cod"
-                    checked={paymentMethod === 'cod'}
-                    onChange={() => setPaymentMethod('cod')}
+                    value="whatsapp_enquiry"
+                    checked={paymentMethod === 'whatsapp_enquiry'}
+                    onChange={() => setPaymentMethod('whatsapp_enquiry')}
                     className="sr-only"
                   />
-                  <span className="text-xs font-bold mb-1">💵 Cash on Delivery</span>
-                  <span className="text-[10px] text-slate-500">Pay upon delivery</span>
+                  <span className="text-xs font-bold mb-1">💬 Direct WhatsApp Order</span>
+                  <span className="text-[10px] text-slate-500">Confirm directly with owner</span>
                 </label>
               </div>
             </div>

@@ -5,13 +5,13 @@ import { useToast } from './ToastContext';
 
 interface AdminContextType {
   products: Product[];
-  addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => Product;
   updateProduct: (id: string, updatedFields: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
   resetProductsToDefault: () => void;
 }
 
-const PRODUCTS_STORAGE_KEY = 'giftoria_products';
+const PRODUCTS_STORAGE_KEY = 'giftoria_products_catalog_v2';
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
@@ -19,7 +19,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const saved = localStorage.getItem(PRODUCTS_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+      return INITIAL_PRODUCTS;
     } catch {
       return INITIAL_PRODUCTS;
     }
@@ -35,18 +41,20 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [products]);
 
-  const addProduct = (newProdData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const id = `prod-${Date.now()}`;
+  const addProduct = (newProdData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Product => {
+    const id = `gft-prod-${Date.now()}`;
     const now = new Date().toISOString();
     const newProduct: Product = {
       ...newProdData,
       id,
+      isActive: newProdData.isActive !== undefined ? newProdData.isActive : true,
       createdAt: now,
       updatedAt: now,
     };
 
     setProducts((prev) => [newProduct, ...prev]);
-    showToast(`Product "${newProduct.name}" added successfully!`, 'success');
+    showToast(`Product "${newProduct.name}" added and live on catalog!`, 'success');
+    return newProduct;
   };
 
   const updateProduct = (id: string, updatedFields: Partial<Product>) => {
@@ -60,13 +68,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const deleteProduct = (id: string) => {
     setProducts((prev) => prev.filter((p) => p.id !== id));
-    showToast('Product deleted', 'info');
+    showToast('Product deleted from catalog', 'info');
   };
 
   const resetProductsToDefault = () => {
     setProducts(INITIAL_PRODUCTS);
     localStorage.removeItem(PRODUCTS_STORAGE_KEY);
-    showToast('Reset product database to default catalog', 'info');
+    showToast('Reset product database to latest approved catalog', 'info');
   };
 
   return (

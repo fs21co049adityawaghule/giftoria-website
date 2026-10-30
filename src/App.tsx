@@ -4,6 +4,7 @@ import { ToastProvider } from './context/ToastContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { OrderProvider } from './context/OrderContext';
+import { AdminProvider } from './context/AdminContext';
 
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
@@ -27,6 +28,7 @@ import { ShippingPage } from './pages/ShippingPage';
 import { RefundPage } from './pages/RefundPage';
 import { AccountPage } from './pages/AccountPage';
 import { OrderHistoryPage } from './pages/OrderHistoryPage';
+import { AdminDashboard } from './pages/AdminDashboard';
 
 // Helper component to scroll to top on route navigation
 const ScrollToTop: React.FC = () => {
@@ -40,38 +42,44 @@ const ScrollToTop: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <ToastProvider>
-      <WishlistProvider>
-        <CartProvider>
-          <OrderProvider>
-            <div className="min-h-screen flex flex-col justify-between bg-[#F8FCFF] text-slate-900 selection:bg-sky-200 selection:text-sky-900 font-sans">
-              <ScrollToTop />
-              <Header />
-              <main className="flex-1">
-                <Switch>
-                  <Route path="/" component={HomePage} />
-                  <Route path="/products" component={ShopPage} />
-                  <Route path="/forever-blooms" component={ShopPage} />
-                  <Route path="/3d-arts" component={ShopPage} />
-                  <Route path="/flowers" component={ShopPage} />
-                  <Route path="/cakes" component={ShopPage} />
-                  <Route path="/plants" component={ShopPage} />
-                  <Route path="/personalized-gifts" component={ShopPage} />
-                  <Route path="/gift-hampers" component={ShopPage} />
-                  <Route path="/chocolates" component={ShopPage} />
-                  <Route path="/jewellery" component={ShopPage} />
-                  <Route path="/home-living" component={ShopPage} />
-                  <Route path="/birthday-gifts" component={ShopPage} />
-                  <Route path="/anniversary-gifts" component={ShopPage} />
-                  
-                  {/* Backward compatibility routes */}
-                  <Route path="/customized-gifts" component={ShopPage} />
-                  <Route path="/3d-printing" component={ShopPage} />
-                  <Route path="/dtf-printing" component={ShopPage} />
-                  <Route path="/sublimation-printing" component={ShopPage} />
-                  <Route path="/photo-frames" component={ShopPage} />
-                  <Route path="/services" component={ShopPage} />
-                  
-                  {/* Core e-commerce routes */}
+      <AdminProvider>
+        <WishlistProvider>
+          <CartProvider>
+            <OrderProvider>
+              <div className="min-h-screen flex flex-col justify-between bg-[#F8FCFF] text-slate-900 selection:bg-sky-200 selection:text-sky-900 font-sans">
+                <ScrollToTop />
+                <Header />
+                <main className="flex-1">
+                  <Switch>
+                    <Route path="/" component={HomePage} />
+                    <Route path="/products" component={ShopPage} />
+                    <Route path="/category/:slug" component={ShopPage} />
+                    <Route path="/frames" component={ShopPage} />
+                    <Route path="/forever-blooms" component={ShopPage} />
+                    <Route path="/3d-arts" component={ShopPage} />
+                    <Route path="/personalized-gifts" component={ShopPage} />
+                    <Route path="/gift-hampers" component={ShopPage} />
+                    <Route path="/jewellery" component={ShopPage} />
+                    <Route path="/birthday-gifts" component={ShopPage} />
+                    <Route path="/anniversary-gifts" component={ShopPage} />
+                    
+                    {/* Admin Dashboard */}
+                    <Route path="/admin" component={AdminDashboard} />
+                    
+                    {/* Backward compatibility routes */}
+                    <Route path="/flowers" component={ShopPage} />
+                    <Route path="/cakes" component={ShopPage} />
+                    <Route path="/plants" component={ShopPage} />
+                    <Route path="/chocolates" component={ShopPage} />
+                    <Route path="/home-living" component={ShopPage} />
+                    <Route path="/customized-gifts" component={ShopPage} />
+                    <Route path="/3d-printing" component={ShopPage} />
+                    <Route path="/dtf-printing" component={ShopPage} />
+                    <Route path="/sublimation-printing" component={ShopPage} />
+                    <Route path="/photo-frames" component={ShopPage} />
+                    <Route path="/services" component={ShopPage} />
+                    
+                    {/* Core e-commerce routes */}
                   <Route path="/product/:slug" component={ProductDetailPage} />
                   <Route path="/wishlist" component={WishlistPage} />
                   <Route path="/favorites" component={WishlistPage} />
@@ -102,7 +110,8 @@ export const App: React.FC = () => {
           </OrderProvider>
         </CartProvider>
       </WishlistProvider>
-    </ToastProvider>
+    </AdminProvider>
+  </ToastProvider>
   );
 };
 

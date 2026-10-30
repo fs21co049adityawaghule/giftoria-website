@@ -13,9 +13,11 @@ import {
   Upload, 
   Sparkles,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  MessageCircle
 } from 'lucide-react';
 import { INITIAL_PRODUCTS } from '../data/products';
+import { useAdmin } from '../context/AdminContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
@@ -25,13 +27,14 @@ import { validateMaharashtraPincode } from '../utils/pincodeUtils';
 export const ProductDetailPage: React.FC = () => {
   const [, params] = useRoute('/product/:slug');
   const [, setLocation] = useLocation();
+  const { products } = useAdmin();
   const { addToCart } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
   const { showToast } = useToast();
 
   const product = useMemo(() => {
-    return INITIAL_PRODUCTS.find((p) => p.slug === params?.slug) || INITIAL_PRODUCTS[0];
-  }, [params?.slug]);
+    return products.find((p) => p.slug === params?.slug) || INITIAL_PRODUCTS.find((p) => p.slug === params?.slug) || INITIAL_PRODUCTS[0];
+  }, [params?.slug, products]);
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -195,22 +198,25 @@ export const ProductDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Price Banner */}
-              <div className="flex items-baseline gap-3 p-4 bg-sky-50/60 rounded-2xl border border-sky-100">
-                <span className="text-3xl font-black text-slate-900">
-                  ₹{product.price.toLocaleString('en-IN')}
-                </span>
-                {product.compareAtPrice && product.compareAtPrice > product.price && (
-                  <>
-                    <span className="text-sm text-slate-600 line-through">
-                      ₹{product.compareAtPrice.toLocaleString('en-IN')}
-                    </span>
-                    <span className="text-xs font-bold bg-sky-500 text-white px-2 py-0.5 rounded-md">
-                      {discountPercent}% OFF
-                    </span>
-                  </>
-                )}
-                <span className="text-xs text-slate-600 ml-auto font-medium">Inclusive of all taxes</span>
+              {/* Price Privacy Banner: Direct Quote & WhatsApp Enquiry */}
+              <div className="p-4 bg-sky-50/70 rounded-2xl border border-sky-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-sky-700 block">
+                    GIFTORIA Pricing
+                  </span>
+                  <span className="text-xl sm:text-2xl font-black text-slate-900">
+                    Pricing Available on Request
+                  </span>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Handmade &amp; customized gifts are quoted based on finish, design size, and customization.
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-bold shadow-xs">
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    Instant WhatsApp Quote
+                  </span>
+                </div>
               </div>
 
               {/* Pincode Availability Checker for Maharashtra */}
@@ -336,18 +342,27 @@ export const ProductDetailPage: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    onClick={handleAddToCart}
-                    className="flex items-center justify-center gap-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 py-3.5 px-6 rounded-2xl font-bold text-sm shadow-xs transition-all active:scale-95"
+                  <a
+                    href={`https://wa.me/918356829605?text=${encodeURIComponent(
+                      `Hello GIFTORIA! I would like to enquire about "${product.name}" (Quantity: ${quantity})${
+                        recipientName ? `, Recipient Name: ${recipientName}` : ''
+                      }${
+                        customMessage ? `, Custom Message: ${customMessage}` : ''
+                      }. Please share pricing and dispatch availability across Maharashtra.`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 px-6 rounded-2xl font-bold text-sm shadow-md shadow-emerald-200 transition-all active:scale-95 text-center"
                   >
-                    <ShoppingBag className="w-4 h-4 text-sky-600" />
-                    Add to Cart
-                  </button>
+                    <MessageCircle className="w-4 h-4" />
+                    Enquire on WhatsApp
+                  </a>
                   <button
                     onClick={handleBuyNow}
                     className="flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 text-white py-3.5 px-6 rounded-2xl font-bold text-sm shadow-md shadow-sky-200 transition-all active:scale-95"
                   >
-                    Buy Now
+                    <ShoppingBag className="w-4 h-4" />
+                    Request Custom Order
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
