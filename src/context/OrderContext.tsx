@@ -3,7 +3,6 @@ import {
   Order, 
   CartItem, 
   ShippingAddress, 
-  PaymentMethod, 
   OrderStatus, 
   PaymentStatus, 
   DeliveryRecord,
@@ -31,152 +30,19 @@ interface OrderContextType {
   updateOrderStatus: (orderId: string, status: OrderStatus, adminNotes?: string) => void;
   updatePaymentStatus: (orderId: string, paymentStatus: PaymentStatus) => void;
   updateDeliveryInfo: (orderId: string, deliveryUpdate: Partial<DeliveryRecord>) => void;
+  cancelOrder: (orderId: string, reason?: string) => void;
+  deleteOrder: (orderId: string, permanent?: boolean) => void;
+  restoreOrder: (orderId: string) => void;
+  updateOrderDetails: (orderId: string, updates: Partial<Order>) => void;
+  clearAllOrders: () => void;
 }
 
-const ORDERS_STORAGE_KEY = 'giftoria_orders_records_v3';
+const ORDERS_STORAGE_KEY = 'giftoria_orders_records_v4';
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
-const SAMPLE_SEED_ORDERS: Order[] = [
-  {
-    orderId: 'GFT-8492',
-    customer: {
-      fullName: 'Pooja Kulkarni',
-      mobile: '9820123456',
-      email: 'pooja.kulkarni@example.com',
-      addressLine: 'Flat 402, Shivneri Apartments, Shivaji Nagar',
-      city: 'Pune',
-      state: 'Maharashtra',
-      country: 'India',
-      pincode: '411005',
-      deliveryDate: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0],
-      deliveryTimeSlot: 'Standard Daytime Dispatch (9:00 AM - 6:00 PM)',
-      messageCard: 'May goddess Saraswati bless your new venture with wisdom and success!'
-    },
-    items: [],
-    itemSnapshots: [
-      {
-        productId: 'gft-fr-01',
-        productName: 'सरस्वती Frame 4x4',
-        category: 'Frames',
-        quantity: 2,
-        sellingPriceSnapshot: 200,
-        costPriceSnapshot: 90,
-        itemProfit: 220,
-        thumbnail: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&q=80&w=800',
-        customization: {
-          recipientName: 'Aarav Educational Institute'
-        }
-      },
-      {
-        productId: 'gft-pg-04',
-        productName: 'Acrylic Keychain (1 pc)',
-        category: 'Personalized Gifts',
-        quantity: 1,
-        sellingPriceSnapshot: 120,
-        costPriceSnapshot: 50,
-        itemProfit: 70,
-        thumbnail: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&q=80&w=800',
-        customization: {
-          customMessage: 'Aarav - 2026'
-        }
-      }
-    ],
-    subtotal: 520,
-    discount: 0,
-    shippingFee: 0,
-    directExpenses: 40,
-    grandTotal: 520,
-    paymentMethod: 'upi',
-    paymentStatus: 'PAYMENT VERIFIED',
-    orderStatus: 'ORDER DELIVERED',
-    upiId: 'aditya15662-2@okaxis',
-    paymentScreenshot: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=800',
-    paymentScreenshotName: 'upi_payment_screenshot_8492.jpeg',
-    paymentSubmittedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-    paymentVerifiedAt: new Date(Date.now() - 86400000 * 3 + 1800000).toISOString(),
-    paymentVerifiedBy: 'Admin (Master Owner)',
-    deliveryRecord: {
-      orderId: 'GFT-8492',
-      customerName: 'Pooja Kulkarni',
-      customerPhone: '9820123456',
-      productSummary: 'सरस्वती Frame 4x4 (x2), Acrylic Keychain (1 pc) (x1)',
-      quantity: 3,
-      deliveryAddress: 'Flat 402, Shivneri Apartments, Shivaji Nagar, Pune',
-      pincode: '411005',
-      expectedDeliveryDate: new Date(Date.now() - 86400000).toISOString().split('T')[0],
-      deliveryStatus: 'Delivered',
-      courierPartner: 'Delhivery',
-      trackingId: 'DLV98371204',
-      trackingUrl: 'https://www.delhivery.com/track/package/DLV98371204',
-      updatedAt: new Date(Date.now() - 86400000).toISOString()
-    },
-    isTestMode: false,
-    createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString()
-  },
-  {
-    orderId: 'GFT-9154',
-    customer: {
-      fullName: 'Rahul Deshmukh',
-      mobile: '9822987654',
-      email: 'rahul.deshmukh@gmail.com',
-      addressLine: 'Row House 12, Baner Hill View, Baner',
-      city: 'Pune',
-      state: 'Maharashtra',
-      country: 'India',
-      pincode: '411045',
-      deliveryDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      deliveryTimeSlot: 'Morning Rush (9:00 AM - 1:00 PM)',
-      messageCard: 'Happy 5th Anniversary to the best couple in Maharashtra! With love, Rahul.'
-    },
-    items: [],
-    itemSnapshots: [
-      {
-        productId: 'gft-3d-04',
-        productName: 'Moon with Customization',
-        category: '3D Prints',
-        quantity: 1,
-        sellingPriceSnapshot: 600,
-        costPriceSnapshot: 270,
-        itemProfit: 330,
-        thumbnail: 'https://images.unsplash.com/photo-1517816743773-6e0fd518b4a6?auto=format&fit=crop&q=80&w=800',
-        customization: {
-          customMessage: 'Rahul & Sneha - Forever in Love',
-          uploadedFileName: 'couple_photo_baner.jpg'
-        }
-      }
-    ],
-    subtotal: 600,
-    discount: 0,
-    shippingFee: 0,
-    directExpenses: 35,
-    grandTotal: 600,
-    paymentMethod: 'upi',
-    paymentStatus: 'PAYMENT VERIFICATION PENDING',
-    orderStatus: 'PAYMENT VERIFICATION PENDING',
-    upiId: 'aditya15662-2@okaxis',
-    paymentScreenshot: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=800',
-    paymentScreenshotName: 'gpay_receipt_9154.jpg',
-    paymentSubmittedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    deliveryRecord: {
-      orderId: 'GFT-9154',
-      customerName: 'Rahul Deshmukh',
-      customerPhone: '9822987654',
-      productSummary: 'Moon with Customization (x1)',
-      quantity: 1,
-      deliveryAddress: 'Row House 12, Baner Hill View, Baner, Pune',
-      pincode: '411045',
-      expectedDeliveryDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      deliveryStatus: 'Not Dispatched',
-      courierPartner: 'Delhivery',
-      updatedAt: new Date(Date.now() - 3600000 * 2).toISOString()
-    },
-    isTestMode: false,
-    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    updatedAt: new Date(Date.now() - 3600000 * 2).toISOString()
-  }
-];
+// Initial orders start with ZERO active orders as strictly instructed
+const SAMPLE_SEED_ORDERS: Order[] = [];
 
 export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [orders, setOrders] = useState<Order[]>(() => {
@@ -184,7 +50,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const saved = localStorage.getItem(ORDERS_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }
@@ -205,7 +71,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [orders]);
 
-  // Submit UPI order with payment screenshot
+  // Submit UPI order with payment screenshot and unique Order ID + Payment ID
   const submitUpiOrder = (
     shippingAddress: ShippingAddress,
     items: CartItem[],
@@ -216,7 +82,9 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     screenshotDataUrl: string,
     screenshotName: string
   ): Order => {
-    const orderId = `GFT-${Math.floor(1000 + Math.random() * 9000)}`;
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const orderId = `GFT-${randomSuffix}`;
+    const paymentId = `PAY-${randomSuffix}-${Date.now().toString().slice(-4)}`;
     const now = new Date().toISOString();
 
     const snapshots: OrderItemSnapshot[] = items.map((item) => {
@@ -239,6 +107,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const newOrder: Order = {
       orderId,
+      paymentId,
       customer: shippingAddress,
       items: [...items],
       itemSnapshots: snapshots,
@@ -248,12 +117,13 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       directExpenses: 35, // standard packaging fee
       grandTotal: ordGrandTotal,
       paymentMethod: 'upi',
-      paymentStatus: 'PAYMENT VERIFICATION PENDING',
-      orderStatus: 'PAYMENT VERIFICATION PENDING',
+      paymentStatus: 'Payment Verification Pending',
+      orderStatus: 'Payment Verification Pending',
       upiId: 'aditya15662-2@okaxis',
       paymentScreenshot: screenshotDataUrl,
       paymentScreenshotName: screenshotName,
       paymentSubmittedAt: now,
+      customerInstructions: shippingAddress.messageCard || undefined,
       deliveryRecord: {
         orderId,
         customerName: shippingAddress.fullName,
@@ -262,7 +132,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         quantity: snapshots.reduce((acc, s) => acc + s.quantity, 0),
         deliveryAddress: `${shippingAddress.addressLine}, ${shippingAddress.city}`,
         pincode: shippingAddress.pincode,
-        expectedDeliveryDate: shippingAddress.deliveryDate || new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+        expectedDeliveryDate: shippingAddress.deliveryDate || new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
         deliveryStatus: 'Not Dispatched',
         courierPartner: 'Delhivery',
         updatedAt: now
@@ -285,8 +155,8 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (ord.orderId !== orderId) return ord;
         return {
           ...ord,
-          paymentStatus: 'PAYMENT VERIFIED',
-          orderStatus: 'ORDER CONFIRMED',
+          paymentStatus: 'Payment Verified',
+          orderStatus: 'Order Confirmed',
           paymentVerifiedAt: now,
           paymentVerifiedBy: adminName,
           rejectionReason: undefined,
@@ -294,7 +164,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         };
       })
     );
-    showToast(`PAYMENT VERIFIED SUCCESSFULLY! Order #${orderId} is now confirmed.`, 'success');
+    showToast(`Payment Verified! Order #${orderId} confirmed.`, 'success');
   };
 
   // Admin rejects payment
@@ -305,9 +175,11 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (ord.orderId !== orderId) return ord;
         return {
           ...ord,
-          paymentStatus: 'PAYMENT REJECTED',
-          orderStatus: 'PAYMENT REJECTED',
+          paymentStatus: 'Payment Rejected',
+          orderStatus: 'Cancelled',
           rejectionReason: reason,
+          cancelledAt: now,
+          cancellationReason: `Payment Rejected: ${reason}`,
           updatedAt: now
         };
       })
@@ -326,8 +198,8 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           paymentScreenshot: screenshotDataUrl,
           paymentScreenshotName: screenshotName,
           paymentSubmittedAt: now,
-          paymentStatus: 'PAYMENT VERIFICATION PENDING',
-          orderStatus: 'PAYMENT VERIFICATION PENDING',
+          paymentStatus: 'Payment Verification Pending',
+          orderStatus: 'Payment Verification Pending',
           rejectionReason: undefined,
           updatedAt: now
         };
@@ -345,14 +217,20 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       prev.map((ord) => {
         if (ord.orderId !== orderId) return ord;
         const now = new Date().toISOString();
+        
+        let newDeliveryStatus = ord.deliveryRecord?.deliveryStatus;
+        if (status === 'Shipped' || status === 'ORDER SHIPPED' || status === 'Dispatched') {
+          newDeliveryStatus = 'Shipped';
+        } else if (status === 'Delivered' || status === 'ORDER DELIVERED') {
+          newDeliveryStatus = 'Delivered';
+        } else if (status === 'Ready for Dispatch') {
+          newDeliveryStatus = 'Ready for Dispatch';
+        }
+
         const updatedDelivery = ord.deliveryRecord
           ? {
               ...ord.deliveryRecord,
-              deliveryStatus: status === 'ORDER SHIPPED' || status === 'Dispatched' 
-                ? 'Dispatched' 
-                : status === 'ORDER DELIVERED' || status === 'Delivered' 
-                  ? 'Delivered' 
-                  : ord.deliveryRecord.deliveryStatus,
+              deliveryStatus: newDeliveryStatus || ord.deliveryRecord.deliveryStatus,
               updatedAt: now,
             }
           : undefined;
@@ -411,6 +289,76 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast(`Delivery record updated for #${orderId}`, 'success');
   };
 
+  // Cancel order with recorded reason & timestamp
+  const cancelOrder = (orderId: string, reason?: string) => {
+    const now = new Date().toISOString();
+    setOrders((prev) =>
+      prev.map((ord) => {
+        if (ord.orderId !== orderId) return ord;
+        return {
+          ...ord,
+          orderStatus: 'Cancelled',
+          cancelledAt: now,
+          cancellationReason: reason || 'Cancelled by Admin',
+          updatedAt: now
+        };
+      })
+    );
+    showToast(`Order #${orderId} cancelled. Excluded from active sales & profit.`, 'warning');
+  };
+
+  // Delete order (soft-delete / archive or permanent delete)
+  const deleteOrder = (orderId: string, permanent = false) => {
+    if (permanent) {
+      setOrders((prev) => prev.filter((o) => o.orderId !== orderId));
+      showToast(`Order #${orderId} permanently deleted from database.`, 'info');
+    } else {
+      const now = new Date().toISOString();
+      setOrders((prev) =>
+        prev.map((ord) =>
+          ord.orderId === orderId
+            ? { ...ord, isDeleted: true, deletedAt: now, updatedAt: now }
+            : ord
+        )
+      );
+      showToast(`Order #${orderId} archived/moved to trash.`, 'info');
+    }
+  };
+
+  // Restore deleted/archived order
+  const restoreOrder = (orderId: string) => {
+    setOrders((prev) =>
+      prev.map((ord) =>
+        ord.orderId === orderId
+          ? { ...ord, isDeleted: false, deletedAt: undefined, updatedAt: new Date().toISOString() }
+          : ord
+      )
+    );
+    showToast(`Order #${orderId} restored to active records.`, 'success');
+  };
+
+  // Update order general details (customer info, expected date, admin notes)
+  const updateOrderDetails = (orderId: string, updates: Partial<Order>) => {
+    setOrders((prev) =>
+      prev.map((ord) => {
+        if (ord.orderId !== orderId) return ord;
+        return {
+          ...ord,
+          ...updates,
+          updatedAt: new Date().toISOString()
+        };
+      })
+    );
+    showToast(`Order #${orderId} details updated.`, 'success');
+  };
+
+  // Initial order cleanup: resets active orders to 0
+  const clearAllOrders = () => {
+    setOrders([]);
+    localStorage.removeItem(ORDERS_STORAGE_KEY);
+    showToast('Orders cleared! Active orders count is now 0.', 'info');
+  };
+
   return (
     <OrderContext.Provider
       value={{
@@ -423,6 +371,11 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateOrderStatus,
         updatePaymentStatus,
         updateDeliveryInfo,
+        cancelOrder,
+        deleteOrder,
+        restoreOrder,
+        updateOrderDetails,
+        clearAllOrders,
       }}
     >
       {children}

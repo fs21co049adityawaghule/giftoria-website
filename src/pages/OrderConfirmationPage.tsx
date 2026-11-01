@@ -356,6 +356,49 @@ export const OrderConfirmationPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Delivery & Live Shipment Tracking Card */}
+          {order.deliveryRecord && (
+            <div className="bg-sky-50/60 rounded-2xl p-4 sm:p-5 border border-sky-200 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-sky-500 text-white flex items-center justify-center font-bold">
+                    <Truck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-900">Shipment &amp; Delivery Tracking</h3>
+                    <p className="text-[11px] text-slate-500">Real-time status managed by GIFTORIA Logistics</p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs font-black bg-sky-500 text-white shadow-xs">
+                  {order.deliveryRecord.deliveryStatus || 'Processing'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs">
+                <div className="bg-white p-2.5 rounded-xl border border-sky-100">
+                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Delivery Status</span>
+                  <span className="font-bold text-slate-900">{order.deliveryRecord.deliveryStatus}</span>
+                </div>
+                <div className="bg-white p-2.5 rounded-xl border border-sky-100">
+                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Courier Partner</span>
+                  <span className="font-bold text-slate-900">{order.deliveryRecord.courierPartner || 'Delhivery / Speed Post'}</span>
+                </div>
+                <div className="bg-white p-2.5 rounded-xl border border-sky-100">
+                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Tracking ID</span>
+                  <span className="font-mono font-bold text-sky-700">
+                    {order.deliveryRecord.trackingId ? order.deliveryRecord.trackingId : 'Awaiting Dispatch'}
+                  </span>
+                </div>
+                <div className="bg-white p-2.5 rounded-xl border border-sky-100">
+                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Expected Delivery</span>
+                  <span className="font-bold text-emerald-700">
+                    {order.deliveryRecord.expectedDeliveryDate || order.customer.deliveryDate || 'Within 2-4 days'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Ordered Products */}
           <div className="space-y-3">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">

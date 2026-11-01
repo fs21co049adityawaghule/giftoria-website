@@ -111,6 +111,10 @@ export interface ShippingAddress {
 export type PaymentMethod = 'upi' | 'whatsapp_enquiry' | 'online_gateway';
 
 export type PaymentStatus = 
+  | 'Payment Verification Pending'
+  | 'Payment Verified'
+  | 'Payment Rejected'
+  | 'Refunded'
   | 'PAYMENT VERIFICATION PENDING'
   | 'PAYMENT VERIFIED'
   | 'PAYMENT REJECTED'
@@ -120,6 +124,14 @@ export type PaymentStatus =
   | 'refunded';
 
 export type OrderStatus = 
+  | 'Payment Verification Pending'
+  | 'Payment Verified'
+  | 'Order Confirmed'
+  | 'Processing'
+  | 'Ready for Dispatch'
+  | 'Shipped'
+  | 'Delivered'
+  | 'Cancelled'
   | 'PAYMENT VERIFICATION PENDING'
   | 'PAYMENT VERIFIED'
   | 'ORDER CONFIRMED'
@@ -132,41 +144,40 @@ export type OrderStatus =
   | 'Confirmed'
   | 'Customization Pending'
   | 'In Production'
-  | 'Ready for Dispatch'
   | 'Dispatched'
-  | 'Out for Delivery'
-  | 'Delivered'
-  | 'Cancelled';
+  | 'Out for Delivery';
 
 export const ORDER_STATUSES: OrderStatus[] = [
-  'PAYMENT VERIFICATION PENDING',
-  'PAYMENT VERIFIED',
-  'ORDER CONFIRMED',
-  'ORDER PROCESSING',
-  'ORDER SHIPPED',
-  'ORDER DELIVERED',
-  'PAYMENT REJECTED',
-  'CANCELLED / REFUNDED'
+  'Payment Verification Pending',
+  'Payment Verified',
+  'Order Confirmed',
+  'Processing',
+  'Ready for Dispatch',
+  'Shipped',
+  'Delivered',
+  'Cancelled'
 ];
 
 export type DeliveryStatus =
   | 'Not Dispatched'
   | 'Ready for Dispatch'
-  | 'Dispatched'
+  | 'Shipped'
   | 'In Transit'
   | 'Out for Delivery'
   | 'Delivered'
-  | 'Delivery Attempt Failed'
-  | 'Returned';
+  | 'Delivery Failed'
+  | 'Returned'
+  | 'Dispatched'
+  | 'Delivery Attempt Failed';
 
 export const DELIVERY_STATUSES: DeliveryStatus[] = [
   'Not Dispatched',
   'Ready for Dispatch',
-  'Dispatched',
+  'Shipped',
   'In Transit',
   'Out for Delivery',
   'Delivered',
-  'Delivery Attempt Failed',
+  'Delivery Failed',
   'Returned'
 ];
 
@@ -219,7 +230,20 @@ export interface Order {
   createdAt: string;
   updatedAt: string;
   
+  // Cancellation & Deletion fields
+  cancelledAt?: string;
+  cancellationReason?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
+  customerInstructions?: string;
+
+  // Refund tracking
+  refundStatus?: 'none' | 'pending' | 'refunded';
+  refundAmount?: number;
+  refundedAt?: string;
+
   // Manual UPI Payment Verification fields
+  paymentId?: string;
   upiId?: string; // 'aditya15662-2@okaxis'
   paymentScreenshot?: string; // Base64 data URL
   paymentScreenshotName?: string;
