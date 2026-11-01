@@ -14,9 +14,11 @@ import {
   Sparkles,
   ArrowRight,
   AlertCircle,
-  Zap
+  Zap,
+  MessageCircle
 } from 'lucide-react';
 import { INITIAL_PRODUCTS } from '../data/products';
+import { businessConfig } from '../config/businessConfig';
 import { useAdmin } from '../context/AdminContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -35,6 +37,15 @@ export const ProductDetailPage: React.FC = () => {
   const product = useMemo(() => {
     return products.find((p) => p.slug === params?.slug) || INITIAL_PRODUCTS.find((p) => p.slug === params?.slug) || INITIAL_PRODUCTS[0];
   }, [params?.slug, products]);
+
+  const [selectedVariant, setSelectedVariant] = useState(() => {
+    return product.availableVariants?.[0] || null;
+  });
+
+  const activePrice = useMemo(() => {
+    if (selectedVariant) return selectedVariant.price;
+    return product.price;
+  }, [product, selectedVariant]);
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -67,11 +78,21 @@ export const ProductDetailPage: React.FC = () => {
   };
 
   const handleAddToCart = () => {
+    if (product.isComingSoon) return;
+
+    // Build custom product snapshot if variant selected
+    const customProduct = {
+      ...product,
+      price: activePrice
+    };
+
     addToCart(
-      product,
+      customProduct,
       {
         customMessage: customMessage || undefined,
         recipientName: recipientName || undefined,
+        selectedVariant: selectedVariant ? selectedVariant.name : undefined,
+        selectedSize: selectedVariant ? selectedVariant.name : undefined,
         selectedWeight: product.availableWeights ? selectedWeight : undefined,
         uploadedFileName: uploadedFileName || undefined,
         deliverySlot: selectedSlot
@@ -81,6 +102,7 @@ export const ProductDetailPage: React.FC = () => {
   };
 
   const handleBuyNow = () => {
+    if (product.isComingSoon) return;
     handleAddToCart();
     setLocation('/cart');
   };
@@ -196,6 +218,76 @@ export const ProductDetailPage: React.FC = () => {
                   </div>
                   <span className="text-xs text-slate-500">{product.reviewsCount} customer reviews</span>
                 </div>
+
+                {/* Price Display */}
+                <div className="mt-4 flex items-baseline gap-3 flex-wrap">
+                  <span className="text-3xl font-black text-slate-900">
+                    {product.isStartingPrice ? `Starting from ₹${activePrice}` : `₹${activePrice}`}
+                  </span>
+                  {product.compareAtPrice && product.compareAtPrice > activePrice && (
+                    <span className="text-base text-slate-400 line-through">
+                      ₹{product.compareAtPrice}
+                    </span>
+                  )}
+                  {discountPercent > 0 && (
+                    <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                      {discountPercent}% OFF
+                    </span>
+                  )}
+                </div>
+
+                {product.isStartingPrice && (
+                  <div className="mt-3 p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 space-y-1.5">
+                    <p className="font-bold">3D Customization &amp; Quotation:</p>
+                    <p className="text-[11px] text-amber-800">
+                      Final price depends on the size and customization of the 3D elements. Enquire on WhatsApp for an instant final quotation.
+                    </p>
+                    <a
+                      href={`https://wa.me/${businessConfig.whatsappNumber}?text=${encodeURIComponent(`Hello GIFTORIA, I would like to get a final quotation for "${product.name}".`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                    >
+                      <MessageCircle className="w-4 h-4 text-emerald-600" />
+                      <span>Enquire for Final Quotation on WhatsApp</span>
+                    </a>
+                  </div>
+                )}
+
+                {/* Variable Size/Option Selector (e.g. Standard ₹120 / Large ₹130) */}
+                {product.availableVariants && product.availableVariants.length > 0 && (
+                  <div className="mt-4 p-4 rounded-2xl bg-sky-50/50 border border-sky-100 space-y-2">
+                    <label className="text-xs font-bold text-slate-800 uppercase block">
+                      Select Size / Option (Required):
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                      {product.availableVariants.map((variant) => {
+                        const isSelected = selectedVariant?.id === variant.id;
+                        return (
+                          <button
+                            key={variant.id}
+                            type="button"
+                            onClick={() => setSelectedVariant(variant)}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
+                              isSelected
+                                ? 'bg-sky-500 text-white border-sky-500 shadow-sm shadow-sky-200'
+                                : 'bg-white text-slate-700 border-sky-200 hover:border-sky-400'
+                            }`}
+                          >
+                            <span>{variant.name}</span>
+                            <span className="ml-1 opacity-90">• ₹{variant.price}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {product.isComingSoon && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-800">
+                    This product is Coming Soon and will be available for purchase shortly!
+                  </div>
+                )}
               </div>
 
               {/* Quality & Assurance Banner */}
@@ -341,27 +433,39 @@ export const ProductDetailPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={handleAddToCart}
-                    className="flex items-center justify-center gap-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 py-3.5 px-6 rounded-2xl font-bold text-sm shadow-xs hover:border-sky-300 transition-all active:scale-95"
-                    aria-label="Add product to cart"
-                  >
-                    <ShoppingBag className="w-4 h-4 text-sky-600" />
-                    Add to Cart
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleBuyNow}
-                    className="flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 text-white py-3.5 px-6 rounded-2xl font-bold text-sm shadow-md shadow-sky-200 hover:shadow-sky-300 transition-all active:scale-95"
-                    aria-label="Buy product now"
-                  >
-                    <Zap className="w-4 h-4 fill-white" />
-                    Buy Now
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
+                {product.isComingSoon ? (
+                  <div className="w-full">
+                    <button
+                      type="button"
+                      disabled
+                      className="w-full py-4 rounded-2xl font-bold text-sm bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed text-center"
+                    >
+                      Coming Soon (Not Purchasable)
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={handleAddToCart}
+                      className="flex items-center justify-center gap-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 py-3.5 px-6 rounded-2xl font-bold text-sm shadow-xs hover:border-sky-300 transition-all active:scale-95"
+                      aria-label="Add product to cart"
+                    >
+                      <ShoppingBag className="w-4 h-4 text-sky-600" />
+                      Add to Cart
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBuyNow}
+                      className="flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 text-white py-3.5 px-6 rounded-2xl font-bold text-sm shadow-md shadow-sky-200 hover:shadow-sky-300 transition-all active:scale-95"
+                      aria-label="Buy product now"
+                    >
+                      <Zap className="w-4 h-4 fill-white" />
+                      Buy Now
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Product Description */}

@@ -128,27 +128,31 @@ export const HomePage: React.FC = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {CATEGORIES_LIST.map((category) => (
             <Link
               key={category.id}
               href={`/category/${category.slug}`}
-              className="group bg-white rounded-2xl p-3 border border-sky-100 hover:border-sky-300 shadow-xs hover:shadow-lg hover:-translate-y-1.5 transition-all duration-300 ease-out flex flex-col items-center text-center motion-reduce:hover:transform-none"
+              className="group relative bg-white rounded-3xl p-6 border-2 border-sky-100 hover:border-sky-400 shadow-sm hover:shadow-2xl hover:shadow-sky-200/80 hover:-translate-y-2 hover:bg-gradient-to-b hover:from-white hover:to-sky-50/60 transition-all duration-300 ease-out flex flex-col items-center text-center motion-reduce:hover:transform-none cursor-pointer overflow-hidden"
             >
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden mb-2.5 bg-sky-50 shadow-inner">
+              <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden mb-4 bg-sky-50 shadow-md border-2 border-sky-100 group-hover:border-sky-300">
                 <img
                   src={category.image}
                   alt={category.name}
-                  className="w-full h-full object-cover transition-transform duration-350 ease-out group-hover:scale-110 motion-reduce:group-hover:scale-100"
+                  className="w-full h-full object-cover transition-all duration-350 ease-out group-hover:scale-110 group-hover:brightness-105 motion-reduce:group-hover:scale-100"
                   loading="lazy"
                 />
               </div>
-              <h3 className="text-xs font-bold text-slate-800 group-hover:text-sky-600 transition-colors line-clamp-1">
+              <h3 className="text-base font-extrabold text-slate-800 group-hover:text-sky-600 transition-colors">
                 {category.name}
               </h3>
-              <span className="text-[10px] text-sky-600 mt-0.5">
-                {category.count}
-              </span>
+              <p className="text-xs text-slate-500 mt-1 line-clamp-2 px-2">
+                {category.description}
+              </p>
+              <div className="mt-3 flex items-center gap-1.5 text-xs font-bold text-sky-600 group-hover:text-sky-700 bg-sky-50 group-hover:bg-sky-100 px-3 py-1 rounded-full transition-colors">
+                <span>Explore Collection</span>
+                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </div>
             </Link>
           ))}
         </div>

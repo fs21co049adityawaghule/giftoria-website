@@ -7,17 +7,14 @@ import {
   ProductCategory, 
   OrderStatus, 
   PaymentStatus, 
-  DeliveryStatus,
   ORDER_STATUSES, 
   DELIVERY_STATUSES 
 } from '../types';
 import { CATEGORIES_LIST } from '../data/products';
+import { businessConfig } from '../config/businessConfig';
 import { 
-  LayoutDashboard, 
-  ShoppingBag, 
-  TrendingUp, 
+  ShieldCheck, 
   Package, 
-  DollarSign, 
   Truck, 
   Settings, 
   Plus, 
@@ -26,27 +23,29 @@ import {
   CheckCircle, 
   Clock, 
   Search, 
-  ExternalLink, 
-  ShieldCheck, 
   Lock, 
   Unlock, 
-  RefreshCw, 
-  Save, 
-  FileText,
   AlertCircle,
   Eye,
-  EyeOff,
-  Phone,
   MessageCircle,
-  X
+  X,
+  QrCode,
+  Image as ImageIcon,
+  Check,
+  Save
 } from 'lucide-react';
 
-type AdminTab = 'dashboard' | 'orders' | 'sales' | 'products' | 'profits' | 'delivery' | 'settings';
-type TimeFilter = 'daily' | 'weekly' | 'monthly' | 'yearly';
+type AdminTab = 'verification' | 'orders' | 'products' | 'delivery' | 'settings';
 
 export const AdminDashboard: React.FC = () => {
   const { products, addProduct, updateProduct, deleteProduct, resetProductsToDefault } = useAdmin();
-  const { orders, updateOrderStatus, updatePaymentStatus, updateDeliveryInfo, addOrderExpense } = useOrder();
+  const { 
+    orders, 
+    adminVerifyPayment, 
+    adminRejectPayment, 
+    updateOrderStatus, 
+    updateDeliveryInfo 
+  } = useOrder();
   const { showToast } = useToast();
 
   // Authentication PIN Gate
@@ -56,19 +55,34 @@ export const AdminDashboard: React.FC = () => {
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
 
-  // Active Tab
-  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+  // Active Tab: Default to 'verification' per Section 4 & 6
+  const [activeTab, setActiveTab] = useState<AdminTab>('verification');
 
-  // Time filter for Sales & Profits
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>('monthly');
+  // Search & Filter State for Payment Verification
+  const [verificationSearch, setVerificationSearch] = useState('');
+  const [verificationFilter, setVerificationFilter] = useState<'all' | 'pending' | 'verified' | 'rejected'>('all');
+
+  // Modal State for Viewing Payment Screenshot
+  const [viewingScreenshotOrder, setViewingScreenshotOrder] = useState<{
+    orderId: string;
+    customerName: string;
+    screenshotUrl?: string;
+    screenshotName?: string;
+    submittedAt?: string;
+  } | null>(null);
+
+  // Modal State for Rejecting Payment
+  const [rejectingOrder, setRejectingOrder] = useState<{
+    orderId: string;
+    customerName: string;
+  } | null>(null);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState('Transaction reference not found in bank account.');
 
   // Orders Tab filters & state
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
   const [editingNotesOrderId, setEditingNotesOrderId] = useState<string | null>(null);
   const [notesInput, setNotesInput] = useState('');
-  const [expenseOrderId, setExpenseOrderId] = useState<string | null>(null);
-  const [expenseAmountInput, setExpenseAmountInput] = useState('');
 
   // Product CRUD Modals
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
@@ -104,7 +118,7 @@ export const AdminDashboard: React.FC = () => {
       setPinError('');
       showToast('Admin access granted', 'success');
     } else {
-      setPinError('Invalid security PIN. Please enter the authorized owner PIN.');
+      setPinError('Invalid security PIN. Please enter authorized admin PIN.');
     }
   };
 
@@ -115,187 +129,44 @@ export const AdminDashboard: React.FC = () => {
     showToast('Logged out of admin panel', 'info');
   };
 
-  // Helper date filtering
-  const filterOrdersByDate = (orderList: typeof orders, filter: TimeFilter) => {
-    const now = new Date();
-    return orderList.filter((ord) => {
-      const ordDate = new Date(ord.createdAt);
-      if (filter === 'daily') {
-        return ordDate.toDateString() === now.toDateString();
-      } else if (filter === 'weekly') {
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        return ordDate >= oneWeekAgo;
-      } else if (filter === 'monthly') {
-        return ordDate.getMonth() === now.getMonth() && ordDate.getFullYear() === now.getFullYear();
-      } else if (filter === 'yearly') {
-        return ordDate.getFullYear() === now.getFullYear();
-      }
-      return true;
-    });
-  };
-
-  // Filtered orders for metrics
-  const filteredOrdersForReports = useMemo(() => {
-    return filterOrdersByDate(orders, timeFilter);
-  }, [orders, timeFilter]);
-
-  // Overall Financial Calculations (Calculated exclusively from verified paid orders)
-  const metrics = useMemo(() => {
-    const verifiedPaidOrders = orders.filter(
-      (o) => o.paymentStatus === 'paid' && o.orderStatus !== 'PENDING PAYMENT' && o.orderStatus !== 'PAYMENT FAILED'
-    );
-    const totalOrders = orders.length;
-    const confirmedCount = verifiedPaidOrders.length;
-    const todayOrders = filterOrdersByDate(verifiedPaidOrders, 'daily').length;
-
-    let totalRevenue = 0;
-    let totalCostOfGoods = 0;
-    let totalDirectExpenses = 0;
-
-    verifiedPaidOrders.forEach((ord) => {
-      totalRevenue += ord.grandTotal || 0;
-      totalDirectExpenses += ord.directExpenses || 0;
-
-      if (ord.itemSnapshots && ord.itemSnapshots.length > 0) {
-        ord.itemSnapshots.forEach((snap) => {
-          totalCostOfGoods += (snap.costPriceSnapshot || 0) * snap.quantity;
-        });
-      } else if (ord.items && ord.items.length > 0) {
-        ord.items.forEach((item) => {
-          const cost = item.product.costPrice || Math.round(item.product.price * 0.5);
-          totalCostOfGoods += cost * item.quantity;
-        });
-      }
-    });
-
-    const netProfit = totalRevenue - totalCostOfGoods - totalDirectExpenses;
-    const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
-
-    const pendingOrders = orders.filter((o) => o.orderStatus === 'PENDING PAYMENT').length;
-    const processingOrders = orders.filter((o) => o.orderStatus === 'PROCESSING' || o.orderStatus === 'PAID / CONFIRMED').length;
-    const shippedOrders = orders.filter((o) => o.orderStatus === 'SHIPPED').length;
-    const deliveredOrders = orders.filter((o) => o.orderStatus === 'DELIVERED').length;
-
-    return {
-      totalOrders,
-      confirmedCount,
-      todayOrders,
-      totalRevenue,
-      totalCostOfGoods,
-      totalDirectExpenses,
-      netProfit,
-      profitMargin,
-      pendingOrders,
-      processingOrders,
-      shippedOrders,
-      deliveredOrders,
-      activeProductsCount: products.filter((p) => p.isActive !== false).length,
-    };
-  }, [orders, products]);
-
-  // Report Metrics (filtered by time, exclusively verified paid orders)
-  const reportMetrics = useMemo(() => {
-    let rev = 0;
-    let cogs = 0;
-    let expenses = 0;
-
-    const categoryStats: Record<string, { units: number; revenue: number; cost: number }> = {};
-    const productStats: Record<string, { name: string; category: string; units: number; revenue: number }> = {};
-
-    const paidFiltered = filteredOrdersForReports.filter(
-      (o) => o.paymentStatus === 'paid' && o.orderStatus !== 'PENDING PAYMENT' && o.orderStatus !== 'PAYMENT FAILED'
-    );
-
-    paidFiltered.forEach((ord) => {
-      rev += ord.grandTotal || 0;
-      expenses += ord.directExpenses || 0;
-
-      const items = (ord.itemSnapshots && ord.itemSnapshots.length > 0)
-        ? ord.itemSnapshots.map(s => ({
-            name: s.productName,
-            category: s.category,
-            quantity: s.quantity,
-            selling: s.sellingPriceSnapshot,
-            cost: s.costPriceSnapshot,
-          }))
-        : ord.items.map(i => ({
-            name: i.product.name,
-            category: i.product.category,
-            quantity: i.quantity,
-            selling: i.product.price,
-            cost: i.product.costPrice || Math.round(i.product.price * 0.5),
-          }));
-
-      items.forEach((it) => {
-        const itemRev = it.selling * it.quantity;
-        const itemCost = it.cost * it.quantity;
-        cogs += itemCost;
-
-        // Category stats
-        if (!categoryStats[it.category]) {
-          categoryStats[it.category] = { units: 0, revenue: 0, cost: 0 };
-        }
-        categoryStats[it.category].units += it.quantity;
-        categoryStats[it.category].revenue += itemRev;
-        categoryStats[it.category].cost += itemCost;
-
-        // Product stats
-        if (!productStats[it.name]) {
-          productStats[it.name] = { name: it.name, category: it.category, units: 0, revenue: 0 };
-        }
-        productStats[it.name].units += it.quantity;
-        productStats[it.name].revenue += itemRev;
-      });
-    });
-
-    const netProfit = rev - cogs - expenses;
-    const profitMargin = rev > 0 ? (netProfit / rev) * 100 : 0;
-
-    return {
-      revenue: rev,
-      cogs,
-      expenses,
-      netProfit,
-      profitMargin,
-      ordersCount: paidFiltered.length,
-      categoryStats,
-      topProducts: Object.values(productStats).sort((a, b) => b.revenue - a.revenue),
-    };
-  }, [filteredOrdersForReports]);
-
-  // Filtered orders list for Orders Tab
-  const displayedOrders = useMemo(() => {
+  // Payment submissions list
+  const filteredSubmissions = useMemo(() => {
     return orders.filter((ord) => {
+      const q = verificationSearch.toLowerCase().trim();
       const matchesSearch =
-        orderSearchQuery === '' ||
-        ord.orderId.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
-        ord.customer.fullName.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
-        (ord.customer.email && ord.customer.email.toLowerCase().includes(orderSearchQuery.toLowerCase())) ||
-        ord.customer.mobile.includes(orderSearchQuery) ||
-        (ord.razorpayPaymentId && ord.razorpayPaymentId.toLowerCase().includes(orderSearchQuery.toLowerCase())) ||
-        (ord.razorpayOrderId && ord.razorpayOrderId.toLowerCase().includes(orderSearchQuery.toLowerCase())) ||
-        ord.customer.city.toLowerCase().includes(orderSearchQuery.toLowerCase());
+        q === '' ||
+        ord.orderId.toLowerCase().includes(q) ||
+        ord.customer.fullName.toLowerCase().includes(q) ||
+        ord.customer.mobile.includes(q) ||
+        (ord.customer.email && ord.customer.email.toLowerCase().includes(q)) ||
+        (ord.upiId && ord.upiId.toLowerCase().includes(q));
 
-      let matchesStatus = true;
-      if (orderStatusFilter === 'confirmed') {
-        matchesStatus = ord.paymentStatus === 'paid' && ord.orderStatus !== 'PENDING PAYMENT' && ord.orderStatus !== 'PAYMENT FAILED';
-      } else if (orderStatusFilter === 'pending') {
-        matchesStatus = ord.orderStatus === 'PENDING PAYMENT';
-      } else if (orderStatusFilter === 'failed') {
-        matchesStatus = ord.orderStatus === 'PAYMENT FAILED';
-      } else if (orderStatusFilter !== 'all') {
-        matchesStatus = ord.orderStatus === orderStatusFilter;
+      let matchesFilter = true;
+      if (verificationFilter === 'pending') {
+        matchesFilter = ord.paymentStatus === 'PAYMENT VERIFICATION PENDING' || ord.paymentStatus === 'pending';
+      } else if (verificationFilter === 'verified') {
+        matchesFilter = ord.paymentStatus === 'PAYMENT VERIFIED' || ord.paymentStatus === 'paid';
+      } else if (verificationFilter === 'rejected') {
+        matchesFilter = ord.paymentStatus === 'PAYMENT REJECTED' || ord.paymentStatus === 'failed';
       }
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesFilter;
     });
-  }, [orders, orderSearchQuery, orderStatusFilter]);
+  }, [orders, verificationSearch, verificationFilter]);
+
+  const pendingPaymentsCount = useMemo(() => {
+    return orders.filter(o => o.paymentStatus === 'PAYMENT VERIFICATION PENDING' || o.paymentStatus === 'pending').length;
+  }, [orders]);
+
+  const verifiedPaymentsCount = useMemo(() => {
+    return orders.filter(o => o.paymentStatus === 'PAYMENT VERIFIED' || o.paymentStatus === 'paid').length;
+  }, [orders]);
 
   // Handle Add Product Submission
   const handleAddProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProd.name.trim() || newProd.price <= 0) {
-      showToast('Please enter a valid product name and selling price', 'error');
+      showToast('Please enter a valid product name and price', 'error');
       return;
     }
 
@@ -304,9 +175,7 @@ export const AdminDashboard: React.FC = () => {
       name: newProd.name.trim(),
       slug: `${slug}-${Math.floor(100 + Math.random() * 900)}`,
       category: newProd.category,
-      service: 'customized-gifts',
-      serviceName: newProd.category,
-      description: newProd.description || `Handcrafted ${newProd.name} by GIFTORIA. Custom designs available on WhatsApp.`,
+      description: newProd.description || `Handcrafted ${newProd.name} by GIFTORIA.`,
       price: Number(newProd.price),
       costPrice: Number(newProd.costPrice),
       compareAtPrice: Math.round(Number(newProd.price) * 1.3),
@@ -314,7 +183,6 @@ export const AdminDashboard: React.FC = () => {
       images: [newProd.thumbnail],
       thumbnail: newProd.thumbnail,
       customizable: newProd.customizable,
-      customizationType: 'image_text',
       stock: Number(newProd.stock),
       featured: true,
       bestSeller: false,
@@ -338,7 +206,6 @@ export const AdminDashboard: React.FC = () => {
       thumbnail: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=600',
       customizable: true,
     });
-    showToast(`Product "${newProd.name}" added to live catalog!`, 'success');
   };
 
   // Handle Edit Product Submission
@@ -360,10 +227,9 @@ export const AdminDashboard: React.FC = () => {
     });
 
     setEditingProduct(null);
-    showToast(`Updated product "${editingProduct.name}"`, 'success');
   };
 
-  // If not authenticated, render the PIN lock gate
+  // If not authenticated, render PIN lock gate
   if (!isAuthenticated) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4 py-16 bg-[#F8FCFF]">
@@ -373,14 +239,10 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-sky-600 bg-sky-50 px-3 py-1 rounded-full border border-sky-200">
-              Authorized Personnel Only
-            </span>
-            <h1 className="text-2xl font-black text-slate-900 mt-2">
-              GIFTORIA Admin Portal
-            </h1>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-sky-600">Secure Access</span>
+            <h1 className="text-2xl font-black text-slate-900 mt-1">GIFTORIA Owner Console</h1>
             <p className="text-xs text-slate-500 mt-1">
-              Enter master owner PIN to manage products, view multi-product orders, and calculate profit reports.
+              Enter authorized PIN to verify customer payments and manage products.
             </p>
           </div>
 
@@ -392,85 +254,72 @@ export const AdminDashboard: React.FC = () => {
                 value={pinInput}
                 onChange={(e) => setPinInput(e.target.value)}
                 autoFocus
-                className="w-full text-center tracking-widest text-lg font-bold py-3.5 px-4 rounded-2xl border border-sky-200 focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-100 transition-all text-slate-800"
+                className="w-full text-center text-lg tracking-widest bg-slate-50 border-2 border-sky-100 focus:border-sky-500 rounded-2xl py-3 px-4 focus:outline-none font-mono"
               />
-              {pinError && (
-                <p className="text-xs text-rose-500 font-semibold mt-2 flex items-center justify-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  {pinError}
-                </p>
-              )}
+              {pinError && <p className="text-xs text-rose-500 font-semibold mt-2">{pinError}</p>}
             </div>
 
             <button
               type="submit"
-              className="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3.5 rounded-2xl text-sm shadow-md shadow-sky-200 transition-all flex items-center justify-center gap-2 active:scale-95"
+              className="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3.5 px-4 rounded-2xl shadow-md shadow-sky-200 transition-all text-sm active:scale-98"
             >
-              <Unlock className="w-4 h-4" />
-              Unlock Admin Console
+              Authenticate &amp; Enter
             </button>
           </form>
 
-          <div className="text-[11px] text-slate-400 bg-slate-50 p-3 rounded-xl border border-slate-100">
-            Hint: Master Admin PIN is <code className="font-mono text-sky-600 font-bold">giftoria2026</code>
-          </div>
+          <p className="text-[11px] text-slate-400">
+            Authorized admin PIN: <span className="font-mono text-slate-600">8356829605</span> or <span className="font-mono text-slate-600">giftoria2026</span>
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#F8FCFF] min-h-screen py-8 text-slate-800 pb-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        
-        {/* Top Header & Navigation Banner */}
-        <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+    <div className="bg-[#F8FCFF] min-h-screen py-8 text-slate-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+
+        {/* Top Header Bar */}
+        <div className="bg-white rounded-3xl border border-sky-100 p-5 sm:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-sky-500 text-white shadow-md shadow-sky-200">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-500 to-sky-400 text-white flex items-center justify-center shadow-md shadow-sky-200">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-black text-slate-900">
-                  GIFTORIA Management Portal
-                </h1>
-                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                  Live Sync
+                <h1 className="text-xl font-black text-slate-900 tracking-tight">GIFTORIA Admin Control Center</h1>
+                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-300">
+                  Live Admin
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Centralized Control: Orders, Live Catalog, Costs &amp; Delivery Tracking
+              <p className="text-xs text-slate-500">
+                UPI ID: <strong className="font-mono text-slate-800">{businessConfig.upiId}</strong> • WhatsApp: <strong>+91 {businessConfig.rawPhone}</strong>
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setIsAddProductModalOpen(true)}
-              className="inline-flex items-center gap-1.5 bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-all active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              Add Product
-            </button>
-
+          <div className="flex items-center gap-2">
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 border border-slate-200 transition-colors"
             >
-              <Lock className="w-3.5 h-3.5" />
-              Lock Console
+              <Unlock className="w-3.5 h-3.5" />
+              <span>Lock Console</span>
             </button>
           </div>
         </div>
 
-        {/* Tab Navigation Menu */}
-        <div className="flex overflow-x-auto gap-2 pb-2 no-scrollbar">
+        {/* Navigation Tabs (Per Section 4 & 6: Report sections removed; Verification is independent) */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
           {[
-            { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-            { id: 'orders', label: `Orders (${orders.length})`, icon: ShoppingBag },
-            { id: 'sales', label: 'Sales Reports', icon: TrendingUp },
-            { id: 'products', label: `Products (${products.length})`, icon: Package },
-            { id: 'profits', label: 'Profit Calculations', icon: DollarSign },
+            { 
+              id: 'verification', 
+              label: 'PAYMENT VERIFICATION', 
+              icon: ShieldCheck,
+              badge: pendingPaymentsCount > 0 ? pendingPaymentsCount : undefined
+            },
+            { id: 'orders', label: `Orders (${orders.length})`, icon: Package },
+            { id: 'products', label: `Products (${products.length})`, icon: QrCode },
             { id: 'delivery', label: 'Delivery Tracking', icon: Truck },
             { id: 'settings', label: 'Settings', icon: Settings },
           ].map((tab) => {
@@ -488,359 +337,216 @@ export const AdminDashboard: React.FC = () => {
               >
                 <Icon className="w-4 h-4" />
                 <span>{tab.label}</span>
+                {tab.badge && (
+                  <span className="px-1.5 py-0.2 bg-amber-400 text-slate-900 rounded-full text-[10px] font-black animate-pulse">
+                    {tab.badge}
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
 
-        {/* ========================================================= */}
-        {/* TAB 1: DASHBOARD OVERVIEW */}
-        {/* ========================================================= */}
-        {activeTab === 'dashboard' && (
-          <div className="space-y-8">
-            {/* Top Stat Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="bg-white p-5 rounded-3xl border border-sky-100 shadow-xs">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Orders</span>
-                <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">{metrics.totalOrders}</p>
-                <span className="text-[11px] text-sky-600 font-medium">Today: {metrics.todayOrders} new</span>
-              </div>
-
-              <div className="bg-white p-5 rounded-3xl border border-sky-100 shadow-xs">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Gross Sales</span>
-                <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">₹{metrics.totalRevenue.toLocaleString('en-IN')}</p>
-                <span className="text-[11px] text-emerald-600 font-medium">All completed orders</span>
-              </div>
-
-              <div className="bg-white p-5 rounded-3xl border border-sky-100 shadow-xs">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Profit</span>
-                <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">₹{metrics.netProfit.toLocaleString('en-IN')}</p>
-                <span className="text-[11px] text-emerald-700 font-bold">{metrics.profitMargin.toFixed(1)}% margin</span>
-              </div>
-
-              <div className="bg-white p-5 rounded-3xl border border-sky-100 shadow-xs">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Active Products</span>
-                <p className="text-2xl sm:text-3xl font-black text-sky-600 mt-1">{metrics.activeProductsCount}</p>
-                <span className="text-[11px] text-slate-500 font-medium">Visible to customers</span>
-              </div>
-            </div>
-
-            {/* Pipeline status widgets */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-2xl flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-amber-800">Pending Payment</span>
-                  <p className="text-xl font-black text-amber-900">{metrics.pendingOrders} orders</p>
-                </div>
-                <Clock className="w-8 h-8 text-amber-500 opacity-80" />
-              </div>
-
-              <div className="bg-sky-50/70 border border-sky-200 p-4 rounded-2xl flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-sky-800">Paid / Processing</span>
-                  <p className="text-xl font-black text-sky-900">{metrics.processingOrders} orders</p>
-                </div>
-                <Package className="w-8 h-8 text-sky-500 opacity-80" />
-              </div>
-
-              <div className="bg-indigo-50/70 border border-indigo-200 p-4 rounded-2xl flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-indigo-800">Dispatched</span>
-                  <p className="text-xl font-black text-indigo-900">{metrics.shippedOrders} orders</p>
-                </div>
-                <Truck className="w-8 h-8 text-indigo-500 opacity-80" />
-              </div>
-
-              <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-emerald-800">Delivered</span>
-                  <p className="text-xl font-black text-emerald-900">{metrics.deliveredOrders} orders</p>
-                </div>
-                <CheckCircle className="w-8 h-8 text-emerald-500 opacity-80" />
-              </div>
-            </div>
-
-            {/* Recent Orders Quick Preview */}
-            <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-bold text-slate-900">Recent Customer Orders</h2>
-                <button
-                  onClick={() => setActiveTab('orders')}
-                  className="text-xs font-bold text-sky-600 hover:text-sky-700"
-                >
-                  View All Orders →
-                </button>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold border-b border-sky-100">
-                    <tr>
-                      <th className="p-3">Order ID</th>
-                      <th className="p-3">Customer</th>
-                      <th className="p-3">Items</th>
-                      <th className="p-3">Amount</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-sky-50 text-slate-700">
-                    {orders.slice(0, 5).map((ord) => {
-                      const itemCount = (ord.itemSnapshots?.length) || ord.items.length || 0;
-                      return (
-                        <tr key={ord.orderId} className="hover:bg-sky-50/40 transition-colors">
-                          <td className="p-3 font-mono font-bold text-sky-600">{ord.orderId}</td>
-                          <td className="p-3 font-semibold text-slate-900">
-                            {ord.customer.fullName}
-                            <span className="block text-[10px] text-slate-400 font-normal">{ord.customer.city}</span>
-                          </td>
-                          <td className="p-3">{itemCount} items</td>
-                          <td className="p-3 font-bold text-slate-900">₹{ord.grandTotal.toLocaleString('en-IN')}</td>
-                          <td className="p-3">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">
-                              {ord.orderStatus}
-                            </span>
-                          </td>
-                          <td className="p-3 text-[11px] text-slate-400">
-                            {new Date(ord.createdAt).toLocaleDateString('en-IN')}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================= */}
-        {/* TAB 2: ORDERS MANAGEMENT (MULTI-PRODUCT HANDLING & PAYMENT VERIFICATION) */}
-        {/* ========================================================= */}
-        {activeTab === 'orders' && (
+        {/* ========================================================================= */}
+        {/* TAB 1: PAYMENT VERIFICATION (PRIMARY CONSOLE) */}
+        {/* ========================================================================= */}
+        {activeTab === 'verification' && (
           <div className="space-y-6">
-            {/* Quick Filter Tabs & Search Bar */}
-            <div className="bg-white rounded-3xl border border-sky-100 p-4 shadow-xs space-y-3">
-              {/* Filter pills */}
-              <div className="flex items-center gap-2 flex-wrap pb-2 border-b border-sky-50">
-                <button
-                  onClick={() => setOrderStatusFilter('all')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    orderStatusFilter === 'all'
-                      ? 'bg-sky-500 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  All Records ({orders.length})
-                </button>
-                <button
-                  onClick={() => setOrderStatusFilter('confirmed')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    orderStatusFilter === 'confirmed'
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                  }`}
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  Confirmed &amp; Paid ({orders.filter(o => o.paymentStatus === 'paid' && o.orderStatus !== 'PENDING PAYMENT' && o.orderStatus !== 'PAYMENT FAILED').length})
-                </button>
-                <button
-                  onClick={() => setOrderStatusFilter('pending')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    orderStatusFilter === 'pending'
-                      ? 'bg-amber-500 text-white shadow-xs'
-                      : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  Pending Payment ({orders.filter(o => o.orderStatus === 'PENDING PAYMENT').length})
-                </button>
-                <button
-                  onClick={() => setOrderStatusFilter('failed')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    orderStatusFilter === 'failed'
-                      ? 'bg-rose-600 text-white shadow-xs'
-                      : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
-                  }`}
-                >
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  Payment Failed ({orders.filter(o => o.orderStatus === 'PAYMENT FAILED').length})
-                </button>
+            {/* Filter and Search Bar */}
+            <div className="bg-white rounded-3xl border border-sky-100 p-4 sm:p-5 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-sky-50">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Manual UPI Payment Submissions</h2>
+                  <p className="text-xs text-slate-500">
+                    Review uploaded payment screenshots, verify UPI transactions, and confirm customer orders.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setVerificationFilter('all')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      verificationFilter === 'all'
+                        ? 'bg-sky-500 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    All Submissions ({orders.length})
+                  </button>
+                  <button
+                    onClick={() => setVerificationFilter('pending')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      verificationFilter === 'pending'
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    Pending ({pendingPaymentsCount})
+                  </button>
+                  <button
+                    onClick={() => setVerificationFilter('verified')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      verificationFilter === 'verified'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                    }`}
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    Verified ({verifiedPaymentsCount})
+                  </button>
+                  <button
+                    onClick={() => setVerificationFilter('rejected')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      verificationFilter === 'rejected'
+                        ? 'bg-rose-600 text-white shadow-xs'
+                        : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                    }`}
+                  >
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Rejected ({orders.filter(o => o.paymentStatus === 'PAYMENT REJECTED' || o.paymentStatus === 'failed').length})
+                  </button>
+                </div>
               </div>
 
-              {/* Search and Specific Status Filter */}
-              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between pt-1">
-                <div className="relative w-full sm:w-96">
-                  <Search className="w-4 h-4 text-sky-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Search Order ID, Customer, Phone, Email, Payment ID..."
-                    value={orderSearchQuery}
-                    onChange={(e) => setOrderSearchQuery(e.target.value)}
-                    className="w-full bg-slate-50 border border-sky-100 rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-sky-500"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-                  <span className="text-[11px] font-bold text-slate-400 shrink-0">Exact Status:</span>
-                  <select
-                    value={orderStatusFilter}
-                    onChange={(e) => setOrderStatusFilter(e.target.value)}
-                    className="bg-slate-50 border border-sky-100 rounded-xl py-2 px-3 text-xs font-semibold text-slate-700 focus:outline-none focus:border-sky-500"
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="confirmed">Only Confirmed &amp; Paid</option>
-                    <option value="pending">Only Pending Payment</option>
-                    <option value="failed">Only Payment Failed</option>
-                    {ORDER_STATUSES.map((st: OrderStatus) => (
-                      <option key={st} value={st}>
-                        {st}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              {/* Search input */}
+              <div className="relative w-full sm:w-96">
+                <Search className="w-4 h-4 text-sky-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by Order ID, Customer, Phone, Email..."
+                  value={verificationSearch}
+                  onChange={(e) => setVerificationSearch(e.target.value)}
+                  className="w-full bg-slate-50 border border-sky-100 rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-sky-500"
+                />
               </div>
             </div>
 
-            {/* Orders List Cards with Multi-Product Blocks */}
-            <div className="space-y-6">
-              {displayedOrders.length === 0 ? (
+            {/* Submissions List */}
+            <div className="space-y-4">
+              {filteredSubmissions.length === 0 ? (
                 <div className="bg-white rounded-3xl border border-sky-100 p-12 text-center text-slate-400 space-y-2">
-                  <Package className="w-10 h-10 mx-auto text-slate-300" />
-                  <p className="text-sm font-semibold">No orders match the selected search or filter.</p>
-                  <p className="text-xs text-slate-400">Try changing your search keywords or switching filter tabs.</p>
+                  <ShieldCheck className="w-10 h-10 text-slate-300 mx-auto" />
+                  <p className="text-sm font-semibold">No payment submissions match the selected filter.</p>
                 </div>
               ) : (
-                displayedOrders.map((ord) => {
-                  const isVerifiedPaid = ord.paymentStatus === 'paid' && ord.orderStatus !== 'PENDING PAYMENT' && ord.orderStatus !== 'PAYMENT FAILED';
+                filteredSubmissions.map((ord) => {
+                  const isPending = ord.paymentStatus === 'PAYMENT VERIFICATION PENDING' || ord.paymentStatus === 'pending';
+                  const isVerified = ord.paymentStatus === 'PAYMENT VERIFIED' || ord.paymentStatus === 'paid';
+                  const isRejected = ord.paymentStatus === 'PAYMENT REJECTED' || ord.paymentStatus === 'failed';
+
                   const itemsList = (ord.itemSnapshots && ord.itemSnapshots.length > 0)
                     ? ord.itemSnapshots
                     : ord.items.map(i => ({
-                        productId: i.product.id,
                         productName: i.product.name,
                         category: i.product.category,
                         quantity: i.quantity,
                         sellingPriceSnapshot: i.product.price,
-                        costPriceSnapshot: i.product.costPrice || Math.round(i.product.price * 0.5),
-                        thumbnail: i.product.thumbnail || i.product.images[0],
-                        customization: i.customization,
+                        thumbnail: i.product.thumbnail,
+                        customization: i.customization
                       }));
 
-                  const totalCogs = itemsList.reduce((acc, i) => acc + (i.costPriceSnapshot * i.quantity), 0);
-                  const orderProfit = (ord.grandTotal || 0) - totalCogs - (ord.directExpenses || 0);
-
                   return (
-                    <div key={ord.orderId} className="bg-white rounded-3xl border border-sky-100 shadow-sm overflow-hidden">
-                      {/* Top Order Summary Bar */}
+                    <div 
+                      key={ord.orderId}
+                      className="bg-white rounded-3xl border border-sky-100 shadow-xs overflow-hidden hover:border-sky-300 transition-all"
+                    >
+                      {/* Top Bar with Order ID & Status */}
                       <div className="bg-slate-50/70 p-4 sm:p-5 border-b border-sky-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="space-y-2">
+                        <div className="space-y-1">
                           <div className="flex items-center gap-3 flex-wrap">
-                            <span className="text-sm font-mono font-black text-sky-600 bg-sky-50 px-2.5 py-1 rounded-xl border border-sky-200">
+                            <span className="font-mono text-sm font-black text-sky-600 bg-sky-50 px-2.5 py-1 rounded-xl border border-sky-200">
                               #{ord.orderId}
                             </span>
 
-                            {/* Payment Verification Badge */}
-                            {ord.paymentStatus === 'paid' ? (
-                              <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1.5 border border-emerald-300">
-                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                                <span>Razorpay Verified</span>
-                                {ord.razorpayPaymentId && (
-                                  <span className="font-mono text-[11px] opacity-90">({ord.razorpayPaymentId})</span>
-                                )}
+                            {/* Status badge */}
+                            {isVerified ? (
+                              <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5">
+                                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>PAYMENT VERIFIED</span>
                               </span>
-                            ) : ord.orderStatus === 'PAYMENT FAILED' ? (
-                              <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-rose-100 text-rose-800 flex items-center gap-1.5 border border-rose-300">
+                            ) : isRejected ? (
+                              <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1.5">
                                 <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-                                <span>Payment Failed</span>
+                                <span>PAYMENT REJECTED</span>
                               </span>
                             ) : (
-                              <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-100 text-amber-800 flex items-center gap-1.5 border border-amber-300">
+                              <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1.5">
                                 <Clock className="w-3.5 h-3.5 text-amber-600" />
-                                <span>Pending Payment (Unverified)</span>
+                                <span>PAYMENT VERIFICATION PENDING</span>
                               </span>
                             )}
 
                             <span className="text-[11px] text-slate-400 font-medium">
-                              📅 {new Date(ord.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                              📅 Submitted: {new Date(ord.paymentSubmittedAt || ord.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
                             </span>
                           </div>
 
-                          <div>
-                            <h3 className="font-bold text-slate-900 text-sm">{ord.customer.fullName}</h3>
-                            <div className="flex items-center gap-2 text-[11px] text-slate-500 flex-wrap">
-                              <span>📞 {ord.customer.mobile}</span>
-                              {ord.customer.email && (
-                                <>
-                                  <span>•</span>
-                                  <span>✉️ {ord.customer.email}</span>
-                                </>
-                              )}
-                              <span>•</span>
-                              <span>📍 {ord.customer.city}, PIN: {ord.customer.pincode}</span>
-                            </div>
+                          <div className="flex items-center gap-2 text-xs text-slate-600 pt-1 flex-wrap">
+                            <span className="font-bold text-slate-900">{ord.customer.fullName}</span>
+                            <span>•</span>
+                            <span>📞 {ord.customer.mobile}</span>
+                            {ord.customer.email && (
+                              <>
+                                <span>•</span>
+                                <span>✉️ {ord.customer.email}</span>
+                              </>
+                            )}
                           </div>
                         </div>
 
-                        {/* Order Controls */}
+                        {/* Top Right Controls & Actions */}
                         <div className="flex items-center gap-2 flex-wrap">
-                          {/* Order Status Selector */}
-                          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-sky-200">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">Status:</span>
-                            <select
-                              value={ord.orderStatus}
-                              onChange={(e) => {
-                                const newSt = e.target.value as OrderStatus;
-                                if (!isVerifiedPaid && (newSt === 'PAID / CONFIRMED' || newSt === 'PROCESSING' || newSt === 'SHIPPED' || newSt === 'DELIVERED')) {
-                                  showToast('Cannot mark an unverified order as confirmed. Requires valid Razorpay payment verification.', 'error');
-                                  return;
-                                }
-                                updateOrderStatus(ord.orderId, newSt);
-                              }}
-                              className="text-xs font-bold text-sky-700 bg-transparent focus:outline-none cursor-pointer"
-                            >
-                              {ORDER_STATUSES.map((st: OrderStatus) => {
-                                const isDisallowedForUnpaid = !isVerifiedPaid && (st === 'PAID / CONFIRMED' || st === 'PROCESSING' || st === 'SHIPPED' || st === 'DELIVERED');
-                                return (
-                                  <option key={st} value={st} disabled={isDisallowedForUnpaid}>
-                                    {st} {isDisallowedForUnpaid ? '(Requires Verified Payment)' : ''}
-                                  </option>
-                                );
-                              })}
-                            </select>
-                          </div>
+                          {/* View Screenshot Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setViewingScreenshotOrder({
+                                orderId: ord.orderId,
+                                customerName: ord.customer.fullName,
+                                screenshotUrl: ord.paymentScreenshot,
+                                screenshotName: ord.paymentScreenshotName,
+                                submittedAt: ord.paymentSubmittedAt || ord.createdAt
+                              });
+                            }}
+                            className="px-3 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-sky-600" />
+                            <span>VIEW SCREENSHOT</span>
+                          </button>
 
-                          {/* Payment Status Indicator / Locked Toggle */}
-                          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-sky-200">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">Payment:</span>
-                            {ord.paymentStatus === 'paid' ? (
-                              <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
-                                <ShieldCheck className="w-3.5 h-3.5" /> Paid (Verified)
-                              </span>
-                            ) : (
-                              <select
-                                value={ord.paymentStatus}
-                                onChange={(e) => {
-                                  const newPayStatus = e.target.value as PaymentStatus;
-                                  if (newPayStatus === 'paid') {
-                                    showToast('Cannot manually mark as paid. Payment must be verified by Razorpay webhook or signature.', 'error');
-                                    return;
-                                  }
-                                  updatePaymentStatus(ord.orderId, newPayStatus);
-                                }}
-                                className="text-xs font-bold text-amber-600 bg-transparent focus:outline-none cursor-pointer"
+                          {/* Admin Verification Actions (if pending) */}
+                          {isPending && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => adminVerifyPayment(ord.orderId)}
+                                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
                               >
-                                <option value="pending">Pending</option>
-                                <option value="failed">Failed</option>
-                                <option value="refunded">Refunded</option>
-                                <option value="paid" disabled>Paid (Requires Razorpay)</option>
-                              </select>
-                            )}
-                          </div>
+                                <Check className="w-3.5 h-3.5" />
+                                <span>VERIFY PAYMENT</span>
+                              </button>
 
-                          {/* WhatsApp Customer Action */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRejectingOrder({
+                                    orderId: ord.orderId,
+                                    customerName: ord.customer.fullName
+                                  });
+                                }}
+                                className="px-3.5 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                                <span>REJECT PAYMENT</span>
+                              </button>
+                            </>
+                          )}
+
+                          {/* WhatsApp Customer Connection */}
                           <a
                             href={`https://wa.me/91${ord.customer.mobile.replace(/\D/g, '')}?text=${encodeURIComponent(
-                              `Hello ${ord.customer.fullName}! Update from GIFTORIA regarding Order #${ord.orderId}: Currently "${ord.orderStatus}".`
+                              `Hello ${ord.customer.fullName}! Update from GIFTORIA regarding Order #${ord.orderId}: Your payment status is currently "${ord.paymentStatus}".`
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -852,171 +558,68 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Razorpay Audit Details Bar (if present or pending) */}
-                      <div className="bg-slate-100/50 px-4 py-2 border-b border-sky-100 flex items-center justify-between flex-wrap gap-2 text-[11px] text-slate-600">
-                        <div className="flex items-center gap-4 flex-wrap font-mono">
-                          <span>Razorpay Order ID: <strong>{ord.razorpayOrderId || 'Pending checkout'}</strong></span>
-                          {ord.razorpayPaymentId && (
-                            <span>Payment ID: <strong className="text-emerald-700">{ord.razorpayPaymentId}</strong></span>
-                          )}
-                          {ord.paymentVerifiedAt && (
-                            <span className="font-sans text-slate-500">
-                              Verified at: {new Date(ord.paymentVerifiedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                      {/* Payment & Products Body */}
+                      <div className="p-4 sm:p-5 space-y-4">
+                        {/* Financial summary bar */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200 text-xs">
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Amount</span>
+                            <span className="text-base font-extrabold text-emerald-700">₹{ord.grandTotal}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">UPI ID</span>
+                            <span className="font-mono font-semibold text-slate-800 text-[11px] truncate block">
+                              {ord.upiId || businessConfig.upiId}
                             </span>
-                          )}
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Order Status</span>
+                            <span className="font-bold text-sky-700">{ord.orderStatus}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Verification Time</span>
+                            <span className="text-slate-600 text-[11px] block">
+                              {ord.paymentVerifiedAt ? new Date(ord.paymentVerifiedAt).toLocaleString('en-IN') : 'Pending Verification'}
+                            </span>
+                          </div>
                         </div>
-                        {ord.paymentFailureReason && (
-                          <span className="text-rose-600 font-medium">
-                            Failure: {ord.paymentFailureReason}
-                          </span>
+
+                        {/* Rejection reason notice if rejected */}
+                        {isRejected && ord.rejectionReason && (
+                          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                            <div>
+                              <strong className="block">Rejection Reason recorded for customer:</strong>
+                              <p className="mt-0.5">{ord.rejectionReason}</p>
+                            </div>
+                          </div>
                         )}
-                      </div>
 
-                      {/* Multi-Product Blocks Container */}
-                      <div className="p-4 sm:p-6 space-y-4">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                          Ordered Items ({itemsList.length} distinct products)
-                        </span>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {itemsList.map((item, idx) => (
-                            <div
-                              key={idx}
-                              className="p-4 rounded-2xl bg-sky-50/40 border border-sky-100 flex items-start gap-3"
-                            >
-                              <img
-                                src={item.thumbnail || 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=600'}
-                                alt={item.productName}
-                                className="w-16 h-16 rounded-xl object-cover bg-white border border-sky-200 shrink-0"
-                              />
-
-                              <div className="space-y-1 min-w-0 flex-1">
-                                <span className="text-[10px] font-bold uppercase text-sky-600 block">
-                                  {item.category}
-                                </span>
-                                <h4 className="text-xs font-bold text-slate-900 leading-tight">
-                                  {item.productName}
-                                </h4>
-
-                                <div className="flex items-center gap-3 text-xs text-slate-600 pt-0.5">
-                                  <span>Quantity: <strong className="text-slate-900">{item.quantity}</strong></span>
-                                  <span>•</span>
-                                  <span>Selling: <strong>₹{item.sellingPriceSnapshot}</strong></span>
-                                  <span>•</span>
-                                  <span className="text-sky-700 font-semibold">Cost: ₹{item.costPriceSnapshot}</span>
-                                </div>
-
-                                {/* Customization Details */}
-                                {item.customization && (
-                                  <div className="mt-2 pt-2 border-t border-sky-100 text-[11px] text-slate-600 space-y-0.5 bg-white p-2 rounded-lg">
-                                    {item.customization.recipientName && (
-                                      <p>• <strong>Name / Text:</strong> {item.customization.recipientName}</p>
-                                    )}
-                                    {item.customization.customMessage && (
-                                      <p>• <strong>Greeting Message:</strong> "{item.customization.customMessage}"</p>
-                                    )}
-                                    {item.customization.uploadedFileName && (
-                                      <p>• <strong>Attached Photo:</strong> {item.customization.uploadedFileName}</p>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Order Delivery & Financial Details Footer */}
-                        <div className="pt-4 border-t border-sky-100 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-slate-600">
-                          <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                              Shipping & Delivery Address
-                            </span>
-                            <p className="font-medium text-slate-800">{ord.customer.addressLine}, {ord.customer.city} ({ord.customer.pincode})</p>
-                            <p className="text-[11px] text-slate-500 mt-0.5">Slot: {ord.customer.deliveryTimeSlot || 'Standard Delivery'}</p>
-                          </div>
-
-                          <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                              Internal Admin Notes
-                            </span>
-                            {editingNotesOrderId === ord.orderId ? (
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={notesInput}
-                                  onChange={(e) => setNotesInput(e.target.value)}
-                                  placeholder="e.g. Gift wrap added, customer called"
-                                  className="w-full text-xs p-1.5 border border-sky-200 rounded-lg focus:outline-none"
+                        {/* Ordered Products block */}
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                            Ordered Products ({itemsList.length} items)
+                          </span>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {itemsList.map((item, idx) => (
+                              <div key={idx} className="p-3 bg-sky-50/30 border border-sky-100 rounded-2xl flex items-start gap-3 text-xs">
+                                <img
+                                  src={item.thumbnail || 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=600'}
+                                  alt={item.productName}
+                                  className="w-12 h-12 rounded-xl object-cover bg-white border border-sky-200 shrink-0"
                                 />
-                                <button
-                                  onClick={() => {
-                                    updateOrderStatus(ord.orderId, ord.orderStatus, notesInput);
-                                    setEditingNotesOrderId(null);
-                                  }}
-                                  className="p-1.5 bg-sky-500 text-white rounded-lg"
-                                >
-                                  <Save className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ) : (
-                              <div
-                                onClick={() => {
-                                  setEditingNotesOrderId(ord.orderId);
-                                  setNotesInput(ord.adminNotes || '');
-                                }}
-                                className="cursor-pointer text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-200 hover:border-sky-300"
-                              >
-                                {ord.adminNotes || <span className="italic text-slate-400">+ Add internal note...</span>}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="bg-sky-50/60 p-3 rounded-2xl border border-sky-100 space-y-1 text-right">
-                            <div className="flex justify-between">
-                              <span>Grand Total:</span>
-                              <strong className="text-slate-900">₹{ord.grandTotal}</strong>
-                            </div>
-                            <div className="flex justify-between text-slate-500">
-                              <span>Total Cost (COGS):</span>
-                              <span>₹{totalCogs}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-slate-500">
-                              <span>Extra Expenses:</span>
-                              {expenseOrderId === ord.orderId ? (
-                                <div className="flex items-center gap-1">
-                                  <input
-                                    type="number"
-                                    placeholder="₹"
-                                    value={expenseAmountInput}
-                                    onChange={(e) => setExpenseAmountInput(e.target.value)}
-                                    className="w-16 p-1 text-xs border rounded"
-                                  />
-                                  <button
-                                    onClick={() => {
-                                      if (Number(expenseAmountInput) > 0) {
-                                        addOrderExpense(ord.orderId, Number(expenseAmountInput));
-                                      }
-                                      setExpenseOrderId(null);
-                                      setExpenseAmountInput('');
-                                    }}
-                                    className="px-1.5 py-0.5 bg-sky-500 text-white rounded text-[10px]"
-                                  >
-                                    Add
-                                  </button>
+                                <div className="min-w-0 flex-1 space-y-0.5">
+                                  <span className="text-[10px] font-bold text-sky-600 uppercase block">{item.category}</span>
+                                  <h4 className="font-bold text-slate-900 truncate">{item.productName}</h4>
+                                  <p className="text-slate-500 text-[11px]">Qty: {item.quantity} × ₹{item.sellingPriceSnapshot}</p>
+                                  {item.customization && (
+                                    <p className="text-[10px] text-slate-600 bg-white p-1 rounded border border-slate-100">
+                                      {item.customization.recipientName || item.customization.customMessage || item.customization.uploadedFileName}
+                                    </p>
+                                  )}
                                 </div>
-                              ) : (
-                                <button
-                                  onClick={() => setExpenseOrderId(ord.orderId)}
-                                  className="text-sky-600 hover:underline"
-                                >
-                                  ₹{ord.directExpenses || 0} (+Add)
-                                </button>
-                              )}
-                            </div>
-                            <div className="pt-1 border-t border-sky-200 flex justify-between font-bold text-emerald-700">
-                              <span>Order Profit:</span>
-                              <span>₹{orderProfit}</span>
-                            </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
@@ -1028,465 +631,254 @@ export const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* ========================================================= */}
-        {/* TAB 3: SALES REPORTING WITH BAR GRAPHS */}
-        {/* ========================================================= */}
-        {activeTab === 'sales' && (
+        {/* ========================================================================= */}
+        {/* TAB 2: ORDERS MANAGEMENT */}
+        {/* ========================================================================= */}
+        {activeTab === 'orders' && (
           <div className="space-y-6">
-            {/* Time Filter Controls */}
-            <div className="bg-white rounded-3xl border border-sky-100 p-4 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-base font-bold text-slate-900">Sales Analytics &amp; Volume</h2>
-                <p className="text-xs text-slate-500">Category-wise performance &amp; top selling gift items</p>
+            <div className="bg-white rounded-3xl border border-sky-100 p-4 shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <div className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 text-sky-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by Order ID, Customer, Phone..."
+                  value={orderSearchQuery}
+                  onChange={(e) => setOrderSearchQuery(e.target.value)}
+                  className="w-full bg-slate-50 border border-sky-100 rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-sky-500"
+                />
               </div>
 
-              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl">
-                {(['daily', 'weekly', 'monthly', 'yearly'] as TimeFilter[]).map((tf) => (
-                  <button
-                    key={tf}
-                    onClick={() => setTimeFilter(tf)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition-all ${
-                      timeFilter === tf ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    {tf}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Metrics cards for period */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-white p-5 rounded-3xl border border-sky-100 shadow-xs">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Filtered Sales Revenue</span>
-                <p className="text-3xl font-black text-slate-900 mt-1">₹{reportMetrics.revenue.toLocaleString('en-IN')}</p>
-                <span className="text-xs text-sky-600 font-semibold">{reportMetrics.ordersCount} orders in this period</span>
-              </div>
-
-              <div className="bg-white p-5 rounded-3xl border border-sky-100 shadow-xs">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Average Order Value (AOV)</span>
-                <p className="text-3xl font-black text-sky-600 mt-1">
-                  ₹{reportMetrics.ordersCount > 0 ? Math.round(reportMetrics.revenue / reportMetrics.ordersCount) : 0}
-                </p>
-                <span className="text-xs text-slate-500">Per checkout cart</span>
-              </div>
-
-              <div className="bg-white p-5 rounded-3xl border border-sky-100 shadow-xs">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Units Sold</span>
-                <p className="text-3xl font-black text-emerald-600 mt-1">
-                  {Object.values(reportMetrics.categoryStats).reduce((acc, c) => acc + c.units, 0)}
-                </p>
-                <span className="text-xs text-slate-500">Across all 8 categories</span>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-[11px] font-bold text-slate-400 shrink-0">Filter Status:</span>
+                <select
+                  value={orderStatusFilter}
+                  onChange={(e) => setOrderStatusFilter(e.target.value)}
+                  className="bg-slate-50 border border-sky-100 rounded-xl py-2 px-3 text-xs font-semibold text-slate-700 focus:outline-none focus:border-sky-500"
+                >
+                  <option value="all">All Orders ({orders.length})</option>
+                  {ORDER_STATUSES.map((st: OrderStatus) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            {/* Responsive Category Sales Bar Graph */}
-            <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">Category-wise Sales Volume (₹ Revenue)</h3>
-                <span className="text-xs text-slate-400">Interactive Bar Graph</span>
-              </div>
-
-              {/* Bar Graph visualization */}
-              <div className="space-y-3 pt-2">
-                {CATEGORIES_LIST.map((cat) => {
-                  const stat = reportMetrics.categoryStats[cat.name] || { units: 0, revenue: 0 };
-                  const maxRev = Math.max(...Object.values(reportMetrics.categoryStats).map(c => c.revenue), 1000);
-                  const percentage = Math.round((stat.revenue / maxRev) * 100);
-
-                  return (
-                    <div key={cat.id} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="font-bold text-slate-800">{cat.name}</span>
-                        <div className="flex gap-3 text-slate-600">
-                          <span>{stat.units} units</span>
-                          <strong className="text-sky-700 font-bold">₹{stat.revenue.toLocaleString('en-IN')}</strong>
+            <div className="space-y-4">
+              {orders
+                .filter((ord) => {
+                  const q = orderSearchQuery.toLowerCase();
+                  const matchesSearch =
+                    q === '' ||
+                    ord.orderId.toLowerCase().includes(q) ||
+                    ord.customer.fullName.toLowerCase().includes(q) ||
+                    ord.customer.mobile.includes(q);
+                  const matchesStatus = orderStatusFilter === 'all' || ord.orderStatus === orderStatusFilter;
+                  return matchesSearch && matchesStatus;
+                })
+                .map((ord) => (
+                  <div key={ord.orderId} className="bg-white rounded-3xl border border-sky-100 p-5 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono text-sm font-black text-sky-600 bg-sky-50 px-2.5 py-1 rounded-xl border border-sky-200">
+                          #{ord.orderId}
+                        </span>
+                        <div>
+                          <h3 className="font-bold text-slate-900 text-sm">{ord.customer.fullName}</h3>
+                          <span className="text-[11px] text-slate-500">📍 {ord.customer.city} • 📞 {ord.customer.mobile}</span>
                         </div>
                       </div>
-                      <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden">
-                        <div
-                          className="bg-gradient-to-r from-sky-400 to-sky-600 h-full rounded-full transition-all duration-700"
-                          style={{ width: `${Math.max(percentage, stat.revenue > 0 ? 5 : 0)}%` }}
-                        />
+
+                      {/* Status selector */}
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={ord.orderStatus}
+                          onChange={(e) => updateOrderStatus(ord.orderId, e.target.value as OrderStatus)}
+                          className="bg-slate-50 border border-sky-200 rounded-xl py-1.5 px-3 text-xs font-bold text-sky-700"
+                        >
+                          {ORDER_STATUSES.map((st) => (
+                            <option key={st} value={st}>
+                              {st}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
 
-            {/* Top Products Table */}
-            <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4">
-              <h3 className="text-sm font-bold text-slate-900">Top Selling Products in Selected Period</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold border-b border-sky-100">
-                    <tr>
-                      <th className="p-3">Product Name</th>
-                      <th className="p-3">Category</th>
-                      <th className="p-3">Units Sold</th>
-                      <th className="p-3">Sales Generated</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-sky-50 text-slate-700">
-                    {reportMetrics.topProducts.map((p, idx) => (
-                      <tr key={idx} className="hover:bg-sky-50/40">
-                        <td className="p-3 font-semibold text-slate-900">{p.name}</td>
-                        <td className="p-3 text-sky-700 font-medium">{p.category}</td>
-                        <td className="p-3 font-bold">{p.units}</td>
-                        <td className="p-3 font-bold text-slate-900">₹{p.revenue.toLocaleString('en-IN')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    <div className="text-xs text-slate-600 pt-2 border-t border-sky-50 flex items-center justify-between">
+                      <span>Total Amount: <strong className="text-slate-900">₹{ord.grandTotal}</strong></span>
+                      <span>Payment Status: <strong className={ord.paymentStatus === 'PAYMENT VERIFIED' ? 'text-emerald-600' : 'text-amber-600'}>{ord.paymentStatus}</strong></span>
+                    </div>
+                  </div>
+                ))}
             </div>
           </div>
         )}
 
-        {/* ========================================================= */}
-        {/* TAB 4: PRODUCTS CATALOG MANAGEMENT (CRUD) */}
-        {/* ========================================================= */}
+        {/* ========================================================================= */}
+        {/* TAB 3: PRODUCTS CATALOG MANAGEMENT */}
+        {/* ========================================================================= */}
         {activeTab === 'products' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-3xl border border-sky-100 p-4 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="bg-white rounded-3xl border border-sky-100 p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-base font-bold text-slate-900">Product Database &amp; Pricing Control</h2>
+                <h2 className="text-base font-bold text-slate-900">Product Catalog Management</h2>
                 <p className="text-xs text-slate-500">
-                  Update customer prices, set hidden cost prices, and instantly sync customer catalog.
+                  Manage live prices, stock levels, and customization options for active gifting items.
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsAddProductModalOpen(true)}
-                  className="bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5"
+                  className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
                 >
                   <Plus className="w-4 h-4" />
-                  Add Product
-                </button>
-                <button
-                  onClick={() => {
-                    if (window.confirm('Reset catalog to the default GIFTORIA curated product set?')) {
-                      resetProductsToDefault();
-                    }
-                  }}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  Reset to Default
+                  <span>Add New Product</span>
                 </button>
               </div>
             </div>
 
-            {/* Products Table */}
-            <div className="bg-white rounded-3xl border border-sky-100 shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold border-b border-sky-100">
-                    <tr>
-                      <th className="p-3.5">Product</th>
-                      <th className="p-3.5">Category</th>
-                      <th className="p-3.5">Selling Price</th>
-                      <th className="p-3.5">Cost Price (Internal)</th>
-                      <th className="p-3.5">Stock</th>
-                      <th className="p-3.5">Status</th>
-                      <th className="p-3.5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-sky-50 text-slate-700">
-                    {products.map((prod) => {
-                      const cost = prod.costPrice || Math.round(prod.price * 0.5);
-                      const marginPct = prod.price > 0 ? Math.round(((prod.price - cost) / prod.price) * 100) : 0;
-                      const isActive = prod.isActive !== false;
-
-                      return (
-                        <tr key={prod.id} className="hover:bg-sky-50/40 transition-colors">
-                          <td className="p-3.5">
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={prod.thumbnail || prod.images[0]}
-                                alt={prod.name}
-                                className="w-10 h-10 rounded-xl object-cover bg-sky-50 border border-sky-100"
-                              />
-                              <div>
-                                <span className="font-bold text-slate-900 block truncate max-w-xs">{prod.name}</span>
-                                <span className="text-[10px] text-slate-400">ID: {prod.id}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-3.5 font-semibold text-sky-700">{prod.category}</td>
-                          <td className="p-3.5 font-black text-slate-900">₹{prod.price}</td>
-                          <td className="p-3.5">
-                            <span className="font-semibold text-slate-700">₹{cost}</span>
-                            <span className="text-[10px] text-emerald-600 block">({marginPct}% margin)</span>
-                          </td>
-                          <td className="p-3.5 font-bold">{prod.stock}</td>
-                          <td className="p-3.5">
-                            <button
-                              onClick={() => {
-                                updateProduct(prod.id, { isActive: !isActive });
-                                showToast(`Product ${isActive ? 'deactivated' : 'activated'}`, 'info');
-                              }}
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
-                                isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
-                              }`}
-                            >
-                              {isActive ? 'Active' : 'Inactive'}
-                            </button>
-                          </td>
-                          <td className="p-3.5 text-right space-x-1">
-                            <button
-                              onClick={() => setEditingProduct(prod)}
-                              className="p-1.5 text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
-                              title="Edit product"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (window.confirm(`Delete "${prod.name}" from catalog?`)) {
-                                  deleteProduct(prod.id);
-                                }
-                              }}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
-                              title="Delete product"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================= */}
-        {/* TAB 5: PROFIT CALCULATIONS */}
-        {/* ========================================================= */}
-        {activeTab === 'profits' && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-3xl border border-sky-100 p-4 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-base font-bold text-slate-900">Comprehensive Profit Formula &amp; Analysis</h2>
-                <p className="text-xs text-slate-500">
-                  Formula: <code className="font-mono bg-sky-50 text-sky-800 px-2 py-0.5 rounded text-[11px]">PROFIT = (SELLING - COST) × QTY - EXPENSES</code>
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl">
-                {(['daily', 'weekly', 'monthly', 'yearly'] as TimeFilter[]).map((tf) => (
-                  <button
-                    key={tf}
-                    onClick={() => setTimeFilter(tf)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition-all ${
-                      timeFilter === tf ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    {tf}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Financial Summary */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="bg-white p-5 rounded-3xl border border-sky-100 shadow-xs">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Gross Sales</span>
-                <p className="text-2xl font-black text-slate-900 mt-1">₹{reportMetrics.revenue.toLocaleString('en-IN')}</p>
-                <span className="text-[11px] text-slate-500">Total customer revenue</span>
-              </div>
-
-              <div className="bg-white p-5 rounded-3xl border border-sky-100 shadow-xs">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Cost of Goods (COGS)</span>
-                <p className="text-2xl font-black text-rose-600 mt-1">₹{reportMetrics.cogs.toLocaleString('en-IN')}</p>
-                <span className="text-[11px] text-slate-500">Direct material/item cost</span>
-              </div>
-
-              <div className="bg-white p-5 rounded-3xl border border-sky-100 shadow-xs">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Direct Order Expenses</span>
-                <p className="text-2xl font-black text-amber-600 mt-1">₹{reportMetrics.expenses.toLocaleString('en-IN')}</p>
-                <span className="text-[11px] text-slate-500">Packaging, transit &amp; runners</span>
-              </div>
-
-              <div className="bg-white p-5 rounded-3xl border border-sky-100 shadow-xs bg-gradient-to-br from-emerald-50 to-white">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Net Profit</span>
-                <p className="text-2xl font-black text-emerald-700 mt-1">₹{reportMetrics.netProfit.toLocaleString('en-IN')}</p>
-                <span className="text-[11px] text-emerald-800 font-bold">{reportMetrics.profitMargin.toFixed(1)}% Net Margin</span>
-              </div>
-            </div>
-
-            {/* Category Profit Distribution Bar Graph */}
-            <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4">
-              <h3 className="text-sm font-bold text-slate-900">Profit Breakdown by Category</h3>
-              
-              <div className="space-y-3 pt-2">
-                {CATEGORIES_LIST.map((cat) => {
-                  const stat = reportMetrics.categoryStats[cat.name] || { units: 0, revenue: 0, cost: 0 };
-                  const profit = stat.revenue - stat.cost;
-                  const maxProfit = Math.max(...Object.values(reportMetrics.categoryStats).map(c => c.revenue - c.cost), 500);
-                  const percentage = Math.round((profit / maxProfit) * 100);
-
-                  return (
-                    <div key={cat.id} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="font-bold text-slate-800">{cat.name}</span>
-                        <div className="flex gap-4 text-slate-600">
-                          <span>Rev: ₹{stat.revenue}</span>
-                          <span>Cost: ₹{stat.cost}</span>
-                          <strong className="text-emerald-700 font-bold">Profit: ₹{profit}</strong>
-                        </div>
-                      </div>
-                      <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden">
-                        <div
-                          className="bg-gradient-to-r from-emerald-400 to-emerald-600 h-full rounded-full transition-all duration-700"
-                          style={{ width: `${Math.max(percentage, profit > 0 ? 5 : 0)}%` }}
-                        />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {products.map((prod) => (
+                <div key={prod.id} className="bg-white rounded-3xl border border-sky-100 p-4 shadow-xs flex flex-col justify-between space-y-3">
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={prod.thumbnail || prod.images?.[0]}
+                      alt={prod.name}
+                      className="w-16 h-16 rounded-2xl object-cover bg-sky-50 border border-sky-100 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-sky-600 block">{prod.category}</span>
+                      <h3 className="text-xs font-bold text-slate-900 line-clamp-1">{prod.name}</h3>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm font-extrabold text-slate-900">₹{prod.price}</span>
+                        {prod.costPrice && (
+                          <span className="text-[10px] text-slate-400 font-semibold">Cost: ₹{prod.costPrice}</span>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-sky-50 flex items-center justify-between text-xs">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${prod.isActive !== false ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                      {prod.isActive !== false ? 'Active Live' : 'Hidden'}
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setEditingProduct(prod)}
+                        className="p-1.5 bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100 transition-colors"
+                        title="Edit product"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete "${prod.name}"?`)) {
+                            deleteProduct(prod.id);
+                          }
+                        }}
+                        className="p-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition-colors"
+                        title="Delete product"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* ========================================================= */}
-        {/* TAB 6: DELIVERY & LOGISTICS TRACKING */}
-        {/* ========================================================= */}
+        {/* ========================================================================= */}
+        {/* TAB 4: DELIVERY & LOGISTICS TRACKING */}
+        {/* ========================================================================= */}
         {activeTab === 'delivery' && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-3xl border border-sky-100 p-4 shadow-xs">
-              <h2 className="text-base font-bold text-slate-900">Logistics &amp; Courier Tracking Console</h2>
+          <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Logistics &amp; Courier Tracking</h2>
               <p className="text-xs text-slate-500">
-                Manage tracking IDs, courier partners, and synchronize delivery statuses across Maharashtra.
+                Manage dispatch statuses, courier partners, and tracking IDs for confirmed orders.
               </p>
             </div>
 
-            <div className="bg-white rounded-3xl border border-sky-100 shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold border-b border-sky-100">
-                    <tr>
-                      <th className="p-3.5">Order ID</th>
-                      <th className="p-3.5">Customer &amp; Phone</th>
-                      <th className="p-3.5">Destination</th>
-                      <th className="p-3.5">Courier Partner</th>
-                      <th className="p-3.5">Tracking ID</th>
-                      <th className="p-3.5">Delivery Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-sky-50 text-slate-700">
-                    {orders.map((ord) => {
-                      const delivery = ord.deliveryRecord || {
-                        deliveryStatus: ord.orderStatus === 'DELIVERED' ? 'Delivered' : ord.orderStatus === 'SHIPPED' ? 'Dispatched' : 'Not Dispatched',
-                        courierPartner: 'Delhivery',
-                        trackingId: '',
-                        trackingUrl: '',
-                      };
-
-                      return (
-                        <tr key={ord.orderId} className="hover:bg-sky-50/40">
-                          <td className="p-3.5 font-mono font-bold text-sky-600">{ord.orderId}</td>
-                          <td className="p-3.5">
-                            <span className="font-semibold text-slate-900 block">{ord.customer.fullName}</span>
-                            <span className="text-[10px] text-slate-400">{ord.customer.mobile}</span>
-                          </td>
-                          <td className="p-3.5">
-                            <span className="block truncate max-w-xs">{ord.customer.addressLine}, {ord.customer.city}</span>
-                            <span className="text-[10px] font-bold text-sky-700">PIN: {ord.customer.pincode}</span>
-                          </td>
-                          <td className="p-3.5">
-                            <input
-                              type="text"
-                              defaultValue={delivery.courierPartner || 'Delhivery'}
-                              onBlur={(e) => updateDeliveryInfo(ord.orderId, { courierPartner: e.target.value })}
-                              className="px-2 py-1 bg-slate-50 border border-sky-100 rounded-lg text-xs w-28 focus:outline-none focus:border-sky-500"
-                            />
-                          </td>
-                          <td className="p-3.5">
-                            <input
-                              type="text"
-                              defaultValue={delivery.trackingId || ''}
-                              placeholder="e.g. DLV983712"
-                              onBlur={(e) => updateDeliveryInfo(ord.orderId, { trackingId: e.target.value })}
-                              className="px-2 py-1 bg-slate-50 border border-sky-100 rounded-lg text-xs w-32 focus:outline-none focus:border-sky-500 font-mono"
-                            />
-                          </td>
-                          <td className="p-3.5">
-                            <select
-                              value={delivery.deliveryStatus}
-                              onChange={(e) => updateDeliveryInfo(ord.orderId, { deliveryStatus: e.target.value as DeliveryStatus })}
-                              className="px-2 py-1 bg-slate-50 border border-sky-100 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-sky-500 cursor-pointer"
-                            >
-                              {DELIVERY_STATUSES.map((ds: DeliveryStatus) => (
-                                <option key={ds} value={ds}>
-                                  {ds}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold border-b border-sky-100">
+                  <tr>
+                    <th className="p-3">Order ID</th>
+                    <th className="p-3">Customer</th>
+                    <th className="p-3">City &amp; PIN</th>
+                    <th className="p-3">Courier</th>
+                    <th className="p-3">Tracking ID</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-sky-50 text-slate-700">
+                  {orders.map((ord) => {
+                    const delivery = ord.deliveryRecord || {
+                      courierPartner: 'Delhivery',
+                      trackingId: ''
+                    };
+                    return (
+                      <tr key={ord.orderId}>
+                        <td className="p-3 font-mono font-bold text-sky-600">#{ord.orderId}</td>
+                        <td className="p-3 font-semibold text-slate-900">{ord.customer.fullName}</td>
+                        <td className="p-3">{ord.customer.city} ({ord.customer.pincode})</td>
+                        <td className="p-3">
+                          <input
+                            type="text"
+                            defaultValue={delivery.courierPartner || 'Delhivery'}
+                            onBlur={(e) => updateDeliveryInfo(ord.orderId, { courierPartner: e.target.value })}
+                            className="bg-slate-50 border border-sky-100 rounded-lg p-1.5 text-xs w-28"
+                          />
+                        </td>
+                        <td className="p-3">
+                          <input
+                            type="text"
+                            defaultValue={delivery.trackingId || ''}
+                            placeholder="e.g. DLV983712"
+                            onBlur={(e) => updateDeliveryInfo(ord.orderId, { trackingId: e.target.value })}
+                            className="bg-slate-50 border border-sky-100 rounded-lg p-1.5 text-xs font-mono w-32"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
 
-        {/* ========================================================= */}
-        {/* TAB 7: SETTINGS & POLICIES */}
-        {/* ========================================================= */}
+        {/* ========================================================================= */}
+        {/* TAB 5: SYSTEM SETTINGS */}
+        {/* ========================================================================= */}
         {activeTab === 'settings' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4">
-              <h3 className="text-base font-bold text-slate-900">GIFTORIA Business Configuration</h3>
-              <div className="space-y-3 text-xs text-slate-600">
-                <div className="p-3 rounded-2xl bg-sky-50/60 border border-sky-100 space-y-1">
-                  <span className="font-bold text-slate-800 block">WhatsApp Customer Concierge:</span>
-                  <p className="font-mono text-sky-700 font-bold">+91 83568 29605</p>
-                  <p className="text-[11px] text-slate-500">All customer inquiries &amp; customization photos route here.</p>
-                </div>
-
-                <div className="p-3 rounded-2xl bg-sky-50/60 border border-sky-100 space-y-1">
-                  <span className="font-bold text-slate-800 block">Delivery Region:</span>
-                  <p className="text-slate-700">All valid 6-digit PIN codes across Maharashtra (Mumbai, Pune, Nagpur, Nashik, etc.)</p>
-                </div>
-
-                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-1 text-emerald-900">
-                  <span className="font-bold block">Strict Price Privacy Rule:</span>
-                  <p className="text-[11px]">
-                    Customer prices are deliberately hidden across the public catalog. Quotes are exclusively generated via WhatsApp consultation for maximum customization value.
-                  </p>
-                </div>
-              </div>
+          <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs max-w-2xl mx-auto space-y-6">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">System &amp; Payment Configuration</h2>
+              <p className="text-xs text-slate-500">Current active UPI and WhatsApp gateway settings</p>
             </div>
 
-            <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4">
-              <h3 className="text-base font-bold text-slate-900">Master Console PIN &amp; Data</h3>
-              <div className="space-y-3 text-xs text-slate-600">
-                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-                  <span className="font-bold text-slate-800 block">Current Admin PIN:</span>
-                  <code className="font-mono text-sky-700 font-bold text-sm">giftoria2026</code>
-                </div>
+            <div className="space-y-4 text-xs">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1 font-mono">
+                <span className="text-[10px] uppercase font-bold text-slate-400 font-sans block">Primary UPI Beneficiary</span>
+                <p className="text-base font-black text-slate-900">{businessConfig.upiId}</p>
+                <span className="text-[11px] text-slate-500 font-sans block">Bank: Axis Bank (aditya15662-2@okaxis)</span>
+              </div>
 
-                <button
-                  onClick={() => {
-                    if (window.confirm('Clear all sample data and restart fresh?')) {
-                      localStorage.removeItem('giftoria_orders_records_v2');
-                      window.location.reload();
-                    }
-                  }}
-                  className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold py-3 rounded-2xl text-xs transition-colors border border-rose-200"
-                >
-                  Reset Local Storage Records
-                </button>
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1 font-mono">
+                <span className="text-[10px] uppercase font-bold text-slate-400 font-sans block">WhatsApp Verification Contact</span>
+                <p className="text-base font-black text-emerald-700">+91 {businessConfig.rawPhone}</p>
+                <span className="text-[11px] text-slate-500 font-sans block">Pre-filled dynamic verification link active on checkout.</span>
+              </div>
+
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1 font-mono">
+                <span className="text-[10px] uppercase font-bold text-slate-400 font-sans block">Owner Security PIN</span>
+                <p className="text-base font-black text-slate-900">8356829605 / giftoria2026</p>
               </div>
             </div>
           </div>
@@ -1494,42 +886,178 @@ export const AdminDashboard: React.FC = () => {
 
       </div>
 
-      {/* ========================================================= */}
-      {/* MODAL: ADD NEW PRODUCT */}
-      {/* ========================================================= */}
-      {isAddProductModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-sky-100 max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      {/* ========================================================================= */}
+      {/* MODAL 1: VIEW PAYMENT SCREENSHOT LIGHTBOX */}
+      {/* ========================================================================= */}
+      {viewingScreenshotOrder && (
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setViewingScreenshotOrder(null)}
+        >
+          <div 
+            className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-3 border-b border-sky-100">
-              <h3 className="font-bold text-slate-900 text-base">Add Product to GIFTORIA Catalog</h3>
-              <button
-                onClick={() => setIsAddProductModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              <div>
+                <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wider">Payment Proof</span>
+                <h3 className="font-mono text-base font-black text-slate-900">
+                  Order #{viewingScreenshotOrder.orderId}
+                </h3>
+                <p className="text-xs text-slate-500">Customer: {viewingScreenshotOrder.customerName}</p>
+              </div>
+              <button 
+                onClick={() => setViewingScreenshotOrder(null)}
+                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddProductSubmit} className="space-y-4 text-xs">
+            <div className="p-2 bg-slate-100 rounded-2xl flex items-center justify-center">
+              {viewingScreenshotOrder.screenshotUrl ? (
+                <img
+                  src={viewingScreenshotOrder.screenshotUrl}
+                  alt={`Payment proof for ${viewingScreenshotOrder.orderId}`}
+                  className="max-h-[60vh] rounded-xl object-contain shadow-sm"
+                />
+              ) : (
+                <div className="py-16 text-center text-slate-400">
+                  <ImageIcon className="w-12 h-12 mx-auto text-slate-300 mb-2" />
+                  <p className="text-xs font-semibold">No screenshot preview available</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setViewingScreenshotOrder(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 2: REJECT PAYMENT WITH REASON */}
+      {/* ========================================================================= */}
+      {rejectingOrder && (
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setRejectingOrder(null)}
+        >
+          <div 
+            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-rose-100">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-rose-600" />
+                <h3 className="font-bold text-slate-900 text-base">Reject Payment Submission</h3>
+              </div>
+              <button onClick={() => setRejectingOrder(null)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Rejecting payment for Order <strong className="font-mono text-slate-900">#{rejectingOrder.orderId}</strong> ({rejectingOrder.customerName}). Please provide a clear rejection reason to display to the customer:
+            </p>
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-slate-700 uppercase">Reason for Rejection *</label>
+              <textarea
+                rows={3}
+                value={rejectionReasonInput}
+                onChange={(e) => setRejectionReasonInput(e.target.value)}
+                placeholder="e.g. UTR reference not credited, screenshot blurred, amount mismatch..."
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-rose-500"
+              />
+              <div className="flex gap-1.5 flex-wrap">
+                {[
+                  'UTR not credited in Axis Bank',
+                  'Screenshot unclear / blur',
+                  'Amount mismatch',
+                  'Duplicate screenshot'
+                ].map((quick) => (
+                  <button
+                    key={quick}
+                    type="button"
+                    onClick={() => setRejectionReasonInput(quick)}
+                    className="text-[10px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded-md"
+                  >
+                    {quick}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setRejectingOrder(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  adminRejectPayment(rejectingOrder.orderId, rejectionReasonInput.trim() || 'Payment details could not be verified.');
+                  setRejectingOrder(null);
+                }}
+                className="px-5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm"
+              >
+                Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: ADD PRODUCT MODAL */}
+      {/* ========================================================================= */}
+      {isAddProductModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setIsAddProductModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-sky-100">
+              <h3 className="font-bold text-slate-900 text-base">Add New Product to Catalog</h3>
+              <button onClick={() => setIsAddProductModalOpen(false)} className="p-1 text-slate-400 hover:bg-slate-100 rounded-lg">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddProductSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Product Name *</label>
+                <label className="block font-bold text-slate-700 mb-1">Product Name *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Customized Couple Lithophane Lamp"
+                  placeholder="e.g. Personalized Wooden Keychain"
                   value={newProd.name}
                   onChange={(e) => setNewProd({ ...newProd, name: e.target.value })}
-                  className="w-full p-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500 font-semibold"
+                  className="w-full p-2.5 bg-slate-50 border border-sky-100 rounded-xl focus:outline-none focus:border-sky-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Category *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Category *</label>
                   <select
                     value={newProd.category}
                     onChange={(e) => setNewProd({ ...newProd, category: e.target.value as ProductCategory })}
-                    className="w-full p-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500 font-semibold cursor-pointer"
+                    className="w-full p-2.5 bg-slate-50 border border-sky-100 rounded-xl focus:outline-none focus:border-sky-500 font-semibold"
                   >
                     {CATEGORIES_LIST.map((c) => (
                       <option key={c.id} value={c.name}>
@@ -1538,93 +1066,85 @@ export const AdminDashboard: React.FC = () => {
                     ))}
                   </select>
                 </div>
-
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Stock Units</label>
+                  <label className="block font-bold text-slate-700 mb-1">Selling Price (₹) *</label>
                   <input
                     type="number"
-                    min={1}
-                    value={newProd.stock}
-                    onChange={(e) => setNewProd({ ...newProd, stock: Number(e.target.value) })}
-                    className="w-full p-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500"
+                    required
+                    value={newProd.price}
+                    onChange={(e) => setNewProd({ ...newProd, price: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-slate-50 border border-sky-100 rounded-xl focus:outline-none focus:border-sky-500 font-bold"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Selling Price (₹) *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Cost Price (₹)</label>
                   <input
                     type="number"
-                    required
-                    min={1}
-                    value={newProd.price}
-                    onChange={(e) => setNewProd({ ...newProd, price: Number(e.target.value) })}
-                    className="w-full p-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500 font-bold"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Cost Price (₹ Internal) *</label>
-                  <input
-                    type="number"
-                    required
-                    min={0}
                     value={newProd.costPrice}
                     onChange={(e) => setNewProd({ ...newProd, costPrice: Number(e.target.value) })}
-                    className="w-full p-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500 font-bold text-sky-700"
+                    className="w-full p-2.5 bg-slate-50 border border-sky-100 rounded-xl focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Available Stock</label>
+                  <input
+                    type="number"
+                    value={newProd.stock}
+                    onChange={(e) => setNewProd({ ...newProd, stock: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-slate-50 border border-sky-100 rounded-xl focus:outline-none focus:border-sky-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Image URL</label>
+                <label className="block font-bold text-slate-700 mb-1">Image URL</label>
                 <input
                   type="url"
-                  placeholder="https://..."
                   value={newProd.thumbnail}
                   onChange={(e) => setNewProd({ ...newProd, thumbnail: e.target.value })}
-                  className="w-full p-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500 text-[11px]"
+                  className="w-full p-2.5 bg-slate-50 border border-sky-100 rounded-xl focus:outline-none focus:border-sky-500 font-mono text-[11px]"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Product Description</label>
+                <label className="block font-bold text-slate-700 mb-1">Description</label>
                 <textarea
                   rows={2}
-                  placeholder="Short details, materials, dimension..."
                   value={newProd.description}
                   onChange={(e) => setNewProd({ ...newProd, description: e.target.value })}
-                  className="w-full p-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500 resize-none"
+                  className="w-full p-2.5 bg-slate-50 border border-sky-100 rounded-xl focus:outline-none focus:border-sky-500"
                 />
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
+              <div className="flex items-center gap-2 pt-2">
                 <input
                   type="checkbox"
-                  id="customizableCheck"
+                  id="customizable-toggle"
                   checked={newProd.customizable}
                   onChange={(e) => setNewProd({ ...newProd, customizable: e.target.checked })}
-                  className="rounded text-sky-500 focus:ring-sky-400"
+                  className="rounded text-sky-600"
                 />
-                <label htmlFor="customizableCheck" className="font-semibold text-slate-700 cursor-pointer">
-                  Allows custom photo upload / text engraving
+                <label htmlFor="customizable-toggle" className="font-bold text-slate-700">
+                  Allow Customer Photo &amp; Text Customization
                 </label>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-sky-100">
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-sky-100">
                 <button
                   type="button"
                   onClick={() => setIsAddProductModalOpen(false)}
-                  className="px-4 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-xl shadow-xs"
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-600 text-white shadow-sm"
                 >
-                  Save to Catalog
+                  Add Product
                 </button>
               </div>
             </form>
@@ -1632,119 +1152,113 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* MODAL: EDIT PRODUCT */}
-      {/* ========================================================= */}
+      {/* ========================================================================= */}
+      {/* MODAL 4: EDIT PRODUCT MODAL */}
+      {/* ========================================================================= */}
       {editingProduct && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-sky-100 max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setEditingProduct(null)}
+        >
+          <div 
+            className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-3 border-b border-sky-100">
-              <h3 className="font-bold text-slate-900 text-base">Edit Product #{editingProduct.id}</h3>
-              <button
-                onClick={() => setEditingProduct(null)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
-              >
-                <X className="w-5 h-5" />
+              <h3 className="font-bold text-slate-900 text-base">Edit Product: {editingProduct.name}</h3>
+              <button onClick={() => setEditingProduct(null)} className="p-1 text-slate-400 hover:bg-slate-100 rounded-lg">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleEditProductSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleEditProductSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Product Name</label>
+                <label className="block font-bold text-slate-700 mb-1">Product Name</label>
                 <input
                   type="text"
                   required
                   value={editingProduct.name}
                   onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                  className="w-full p-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500 font-semibold"
+                  className="w-full p-2.5 bg-slate-50 border border-sky-100 rounded-xl focus:outline-none focus:border-sky-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Category</label>
-                  <select
-                    value={editingProduct.category}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value as ProductCategory })}
-                    className="w-full p-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500 font-semibold cursor-pointer"
-                  >
-                    {CATEGORIES_LIST.map((c) => (
-                      <option key={c.id} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Stock</label>
-                  <input
-                    type="number"
-                    value={editingProduct.stock}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, stock: Number(e.target.value) })}
-                    className="w-full p-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Selling Price (₹)</label>
+                  <label className="block font-bold text-slate-700 mb-1">Selling Price (₹)</label>
                   <input
                     type="number"
                     required
                     value={editingProduct.price}
                     onChange={(e) => setEditingProduct({ ...editingProduct, price: Number(e.target.value) })}
-                    className="w-full p-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500 font-bold"
+                    className="w-full p-2.5 bg-slate-50 border border-sky-100 rounded-xl focus:outline-none focus:border-sky-500 font-bold"
                   />
                 </div>
-
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Cost Price (₹ Internal)</label>
+                  <label className="block font-bold text-slate-700 mb-1">Cost Price (₹)</label>
                   <input
                     type="number"
-                    required
-                    value={editingProduct.costPrice || Math.round(editingProduct.price * 0.5)}
+                    value={editingProduct.costPrice || 0}
                     onChange={(e) => setEditingProduct({ ...editingProduct, costPrice: Number(e.target.value) })}
-                    className="w-full p-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500 font-bold text-sky-700"
+                    className="w-full p-2.5 bg-slate-50 border border-sky-100 rounded-xl focus:outline-none focus:border-sky-500"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Stock</label>
+                  <input
+                    type="number"
+                    value={editingProduct.stock}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, stock: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-slate-50 border border-sky-100 rounded-xl focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Live Status</label>
+                  <select
+                    value={editingProduct.isActive !== false ? 'active' : 'inactive'}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, isActive: e.target.value === 'active' })}
+                    className="w-full p-2.5 bg-slate-50 border border-sky-100 rounded-xl focus:outline-none focus:border-sky-500"
+                  >
+                    <option value="active">Active (Visible)</option>
+                    <option value="inactive">Inactive (Hidden)</option>
+                  </select>
                 </div>
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Thumbnail Image URL</label>
+                <label className="block font-bold text-slate-700 mb-1">Image URL</label>
                 <input
                   type="url"
                   value={editingProduct.thumbnail}
                   onChange={(e) => setEditingProduct({ ...editingProduct, thumbnail: e.target.value })}
-                  className="w-full p-2.5 border border-sky-200 rounded-xl focus:outline-none focus:border-sky-500 text-[11px]"
+                  className="w-full p-2.5 bg-slate-50 border border-sky-100 rounded-xl focus:outline-none focus:border-sky-500 font-mono text-[11px]"
                 />
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="activeCheck"
-                  checked={editingProduct.isActive !== false}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, isActive: e.target.checked })}
-                  className="rounded text-sky-500 focus:ring-sky-400"
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Description</label>
+                <textarea
+                  rows={2}
+                  value={editingProduct.description}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-sky-100 rounded-xl focus:outline-none focus:border-sky-500"
                 />
-                <label htmlFor="activeCheck" className="font-semibold text-slate-700 cursor-pointer">
-                  Active in Customer Catalog
-                </label>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-sky-100">
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-sky-100">
                 <button
                   type="button"
                   onClick={() => setEditingProduct(null)}
-                  className="px-4 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-xl shadow-xs"
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-600 text-white shadow-sm"
                 >
                   Save Changes
                 </button>

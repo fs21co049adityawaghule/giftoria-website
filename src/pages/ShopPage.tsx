@@ -7,23 +7,22 @@ import { Filter, SlidersHorizontal, Sparkles, MessageCircle, HeartHandshake } fr
 import { businessConfig } from '../config/businessConfig';
 
 function resolveCategoryFromPath(pathname: string, searchParam: string | null): string {
-  if (searchParam) return searchParam;
+  if (searchParam) {
+    if (searchParam.toLowerCase().includes('3d')) return '3D Prints';
+    return searchParam;
+  }
 
   const lower = pathname.toLowerCase();
   if (lower.startsWith('/category/')) {
     const slug = lower.replace('/category/', '').trim();
     const matched = CATEGORIES_LIST.find(c => c.slug === slug);
     if (matched) return matched.name;
+    if (slug.includes('3d')) return '3D Prints';
   }
 
   if (lower.includes('personalized')) return 'Personalized Gifts';
-  if (lower.includes('3d') || lower.includes('arts')) return '3D Arts';
+  if (lower.includes('3d') || lower.includes('prints') || lower.includes('arts')) return '3D Prints';
   if (lower.includes('frame')) return 'Frames';
-  if (lower.includes('forever') || lower.includes('bloom')) return 'Forever Blooms';
-  if (lower.includes('hamper')) return 'Gift Hampers';
-  if (lower.includes('birthday')) return 'Birthday Gifts';
-  if (lower.includes('anniversary')) return 'Anniversary Gifts';
-  if (lower.includes('jewel')) return 'Jewellery';
 
   return 'All';
 }

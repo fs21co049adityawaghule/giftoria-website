@@ -89,13 +89,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <Heart className={`w-4 h-4 ${wishlisted ? 'fill-rose-500' : ''}`} />
       </button>
 
-      {/* Product Image with smooth 1.06 zoom on hover */}
+      {/* Product Image with smooth hover animation & brightness */}
       <div className="relative aspect-square w-full overflow-hidden bg-sky-50/50">
         <img
           src={product.thumbnail || product.images?.[0]}
           alt={product.name}
           loading="lazy"
-          className="w-full h-full object-cover transition-transform duration-350 ease-out group-hover:scale-[1.06] motion-reduce:group-hover:scale-100"
+          className="w-full h-full object-cover transition-all duration-300 ease-out group-hover:scale-105 group-hover:brightness-105 motion-reduce:group-hover:scale-100"
           onError={(e) => {
             (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&q=80&w=600';
           }}
@@ -113,7 +113,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </div>
 
           {/* Product Title */}
-          <h3 className="font-semibold text-slate-800 text-sm md:text-base line-clamp-2 leading-snug group-hover:text-sky-600 transition-colors duration-200">
+          <h3 className="font-bold text-slate-800 text-sm md:text-base line-clamp-2 leading-snug group-hover:text-sky-600 transition-colors duration-200">
             {product.name}
           </h3>
 
@@ -125,44 +125,72 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             </div>
             <span className="text-xs text-slate-500">({product.reviewsCount} reviews)</span>
           </div>
+
+          {/* Price display */}
+          <div className="mt-2.5 flex items-baseline gap-2 flex-wrap">
+            <span className="text-base font-extrabold text-slate-900">
+              {product.isStartingPrice ? `Starting from ₹${product.price}` : `₹${product.price}`}
+            </span>
+            {product.compareAtPrice && product.compareAtPrice > product.price && (
+              <span className="text-xs text-slate-400 line-through">
+                ₹{product.compareAtPrice}
+              </span>
+            )}
+            {product.isStartingPrice && (
+              <span className="text-[10px] text-sky-600 font-semibold block w-full">
+                Final quotation based on 3D complexity
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Action: ADD TO CART (Secondary) + BUY NOW (Primary) */}
-        <div className="pt-3 mt-3 border-t border-sky-50 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={isAdding || product.isComingSoon}
-            className={`w-full flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none ${
-              justAdded
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
-                : 'bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 hover:border-sky-300 shadow-xs'
-            }`}
-            aria-label={`Add ${product.name} to cart`}
-          >
-            {justAdded ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="truncate">Added!</span>
-              </>
-            ) : (
-              <>
-                <ShoppingBag className="w-3.5 h-3.5 text-sky-600" />
-                <span className="truncate">Add to Cart</span>
-              </>
-            )}
-          </button>
+        <div className="pt-3 mt-3 border-t border-sky-50">
+          {product.isComingSoon ? (
+            <button
+              disabled
+              className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
+            >
+              Coming Soon
+            </button>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                disabled={isAdding}
+                className={`w-full flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition-all duration-200 active:scale-95 ${
+                  justAdded
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                    : 'bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 hover:border-sky-300 shadow-xs'
+                }`}
+                aria-label={`Add ${product.name} to cart`}
+              >
+                {justAdded ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="truncate">Added!</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="w-3.5 h-3.5 text-sky-600" />
+                    <span className="truncate">Add to Cart</span>
+                  </>
+                )}
+              </button>
 
-          <button
-            type="button"
-            onClick={handleBuyNow}
-            disabled={isAdding || product.isComingSoon}
-            className="w-full flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-600 text-white shadow-md shadow-sky-200 hover:shadow-sky-300 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none"
-            aria-label={`Buy ${product.name} now`}
-          >
-            <Zap className="w-3.5 h-3.5 fill-white text-white" />
-            <span className="truncate">Buy Now</span>
-          </button>
+              <button
+                type="button"
+                onClick={handleBuyNow}
+                disabled={isAdding}
+                className="w-full flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-600 text-white shadow-md shadow-sky-200 hover:shadow-sky-300 active:scale-95 transition-all duration-200"
+                aria-label={`Buy ${product.name} now`}
+              >
+                <Zap className="w-3.5 h-3.5 fill-white text-white" />
+                <span className="truncate">Buy Now</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

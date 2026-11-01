@@ -3,13 +3,9 @@ export type CustomizationType = string;
 
 export type ProductCategory = 
   | 'Personalized Gifts'
-  | '3D Arts'
-  | 'Forever Blooms'
-  | 'Gift Hampers'
-  | 'Birthday Gifts'
-  | 'Anniversary Gifts'
-  | 'Jewellery'
+  | '3D Prints'
   | 'Frames'
+  | '3D Arts'
   | string;
 
 export interface ProductVariant {
@@ -107,15 +103,25 @@ export interface ShippingAddress {
   messageCard?: string;
 }
 
-export type PaymentMethod = 'razorpay' | 'upi' | 'card' | 'netbanking' | 'whatsapp_enquiry' | 'online_gateway';
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+export type PaymentMethod = 'upi' | 'whatsapp_enquiry' | 'online_gateway';
+
+export type PaymentStatus = 
+  | 'PAYMENT VERIFICATION PENDING'
+  | 'PAYMENT VERIFIED'
+  | 'PAYMENT REJECTED'
+  | 'pending'
+  | 'paid'
+  | 'failed'
+  | 'refunded';
+
 export type OrderStatus = 
-  | 'PENDING PAYMENT'
-  | 'PAYMENT FAILED'
-  | 'PAID / CONFIRMED'
-  | 'PROCESSING'
-  | 'SHIPPED'
-  | 'DELIVERED'
+  | 'PAYMENT VERIFICATION PENDING'
+  | 'PAYMENT VERIFIED'
+  | 'ORDER CONFIRMED'
+  | 'ORDER PROCESSING'
+  | 'ORDER SHIPPED'
+  | 'ORDER DELIVERED'
+  | 'PAYMENT REJECTED'
   | 'CANCELLED / REFUNDED'
   | 'New Order'
   | 'Confirmed'
@@ -128,12 +134,13 @@ export type OrderStatus =
   | 'Cancelled';
 
 export const ORDER_STATUSES: OrderStatus[] = [
-  'PENDING PAYMENT',
-  'PAYMENT FAILED',
-  'PAID / CONFIRMED',
-  'PROCESSING',
-  'SHIPPED',
-  'DELIVERED',
+  'PAYMENT VERIFICATION PENDING',
+  'PAYMENT VERIFIED',
+  'ORDER CONFIRMED',
+  'ORDER PROCESSING',
+  'ORDER SHIPPED',
+  'ORDER DELIVERED',
+  'PAYMENT REJECTED',
   'CANCELLED / REFUNDED'
 ];
 
@@ -207,12 +214,14 @@ export interface Order {
   createdAt: string;
   updatedAt: string;
   
-  // Razorpay Payment Gateway integration fields
-  razorpayOrderId?: string;
-  razorpayPaymentId?: string;
-  razorpaySignature?: string;
+  // Manual UPI Payment Verification fields
+  upiId?: string; // 'aditya15662-2@okaxis'
+  paymentScreenshot?: string; // Base64 data URL
+  paymentScreenshotName?: string;
+  paymentSubmittedAt?: string;
   paymentVerifiedAt?: string;
-  paymentFailureReason?: string;
+  paymentVerifiedBy?: string;
+  rejectionReason?: string;
 }
 
 export interface Toast {
