@@ -21,9 +21,9 @@ export const CATEGORIES_LIST: CategoryMeta[] = [
     count: '12 Items'
   },
   {
-    id: '3D Prints',
-    name: '3D Prints',
-    slug: '3d-prints',
+    id: '3D Arts',
+    name: '3D Arts',
+    slug: '3d-arts',
     image: 'https://images.unsplash.com/photo-1567591414240-e593574c3d31?auto=format&fit=crop&q=80&w=600',
     description: '3D-printed Ganesh Murti, skeleton keychains, 3D moon lamps & customized couple statues',
     subtitle: 'Precision engineered 3D prints',
@@ -37,6 +37,51 @@ export const CATEGORIES_LIST: CategoryMeta[] = [
     description: 'Handcrafted spiritual & divine photo frames: Saraswati Frame and Ganpati Frame (4x4 inches)',
     subtitle: 'Artisan frames & divine keepsakes',
     count: '2 Items'
+  },
+  {
+    id: 'Forever Blooms',
+    name: 'Forever Blooms',
+    slug: 'forever-blooms',
+    image: 'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?auto=format&fit=crop&q=80&w=600',
+    description: 'Handcrafted flowers that last: crochet, satin ribbon, paper & everlasting artificial bouquets',
+    subtitle: 'Handcrafted flowers that last',
+    count: 'Coming Soon'
+  },
+  {
+    id: 'Gift Hampers',
+    name: 'Gift Hampers',
+    slug: 'gift-hampers',
+    image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=600',
+    description: 'Celebration boxes, artisanal treats, customized boxes & festive hampers',
+    subtitle: 'Curated gift hampers',
+    count: 'Coming Soon'
+  },
+  {
+    id: 'Birthday Gifts',
+    name: 'Birthday Gifts',
+    slug: 'birthday-gifts',
+    image: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&q=80&w=600',
+    description: 'Special customized birthday mugs, standees, bottles, t-shirts, keychains and moon lamps',
+    subtitle: 'Celebrate birthdays with love',
+    count: 'Curated'
+  },
+  {
+    id: 'Anniversary Gifts',
+    name: 'Anniversary Gifts',
+    slug: 'anniversary-gifts',
+    image: 'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?auto=format&fit=crop&q=80&w=600',
+    description: '3D couple statues, magic mugs, couple frames, standees and personalized keepsakes',
+    subtitle: 'Romantic & milestone gifts',
+    count: 'Curated'
+  },
+  {
+    id: 'Jewellery',
+    name: 'Jewellery',
+    slug: 'jewellery',
+    image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&q=80&w=600',
+    description: 'Personalized acrylic name badges, metallic pins, charms and keepsake jewelry',
+    subtitle: 'Elegant accessories',
+    count: 'Coming Soon'
   }
 ];
 
@@ -75,7 +120,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.9,
     reviewsCount: 84,
     deliveryLabel: 'Dispatched in 24-48 Hours',
-    tags: ['coffee mugs', 'coffee mug', 'mug', 'personalized mug', 'photo mug', 'custom mug'],
+    tags: ['coffee mugs', 'coffee mug', 'mug', 'personalized mug', 'photo mug', 'custom mug', 'birthday', 'anniversary'],
     occasion: 'Birthday',
     isActive: true
   },
@@ -101,7 +146,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.9,
     reviewsCount: 112,
     deliveryLabel: 'Dispatched in 24-48 Hours',
-    tags: ['heat coffee mug', 'magic mug', 'heat mug', 'color changing mug', 'mug'],
+    tags: ['heat coffee mug', 'magic mug', 'heat mug', 'color changing mug', 'mug', 'anniversary', 'birthday'],
     occasion: 'Anniversary',
     isActive: true
   },
@@ -126,7 +171,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.8,
     reviewsCount: 45,
     deliveryLabel: 'Dispatched in 24-48 Hours',
-    tags: ['sublimation bottle 250ml', 'sublimation bottle', 'steel bottle', 'bottle', 'water bottle', '250ml bottle'],
+    tags: ['sublimation bottle 250ml', 'sublimation bottle', 'steel bottle', 'bottle', 'water bottle', '250ml bottle', 'birthday'],
     occasion: 'Birthday',
     isActive: true
   },
@@ -156,7 +201,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.8,
     reviewsCount: 96,
     deliveryLabel: 'Dispatched in 24 Hours',
-    tags: ['acrylic keychain', 'acrylic keychain 1 pc', 'keychain', 'photo keychain', 'key ring'],
+    tags: ['acrylic keychain', 'acrylic keychain 1 pc', 'keychain', 'photo keychain', 'key ring', 'birthday'],
     occasion: 'Birthday',
     isActive: true
   },
@@ -180,7 +225,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.7,
     reviewsCount: 38,
     deliveryLabel: 'Dispatched in 24 Hours',
-    tags: ['mdf keychain', 'wooden keychain', 'keychain', 'mdf photo keychain'],
+    tags: ['mdf keychain', 'wooden keychain', 'keychain', 'mdf photo keychain', 'anniversary'],
     occasion: 'Anniversary',
     isActive: true
   },
@@ -209,17 +254,17 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.8,
     reviewsCount: 29,
     deliveryLabel: 'Dispatched in 24 Hours',
-    tags: ['golden acrylic badge', 'badge', 'acrylic badge', 'name badge', 'pin badge'],
+    tags: ['golden acrylic badge', 'badge', 'acrylic badge', 'name badge', 'pin badge', 'jewellery', 'corporate'],
     occasion: 'Corporate',
     isActive: true
   },
   {
     id: 'gft-pg-07',
-    name: 'T-Shirt',
-    slug: 't-shirt',
+    name: 'T-Shirt with one A4-size print',
+    slug: 't-shirt-with-one-a4-size-print',
     category: 'Personalized Gifts',
     subCategory: 'Apparel',
-    description: '100% bio-washed breathable cotton t-shirt with premium high-definition A4-size personalized print on front or back. High wash durability.',
+    description: '100% bio-washed breathable cotton t-shirt with premium high-definition A4-size personalized print on front or back (includes one A4-size print). High wash durability.',
     price: 600,
     costPrice: 280,
     compareAtPrice: 899,
@@ -235,17 +280,17 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.9,
     reviewsCount: 77,
     deliveryLabel: 'Dispatched in 24-48 Hours',
-    tags: ['t-shirt', 't shirt', 'custom t-shirt', 'printed t-shirt', 'cotton t-shirt', 'tshirt'],
+    tags: ['t-shirt with one a4-size print', 't-shirt', 't shirt', 'custom t-shirt', 'printed t-shirt', 'cotton t-shirt', 'birthday'],
     occasion: 'Birthday',
     isActive: true
   },
   {
     id: 'gft-pg-08',
-    name: 'Woollen Cap Sublimation',
+    name: 'Woollen Cap Sublimation (including cap)',
     slug: 'woollen-cap-sublimation',
     category: 'Personalized Gifts',
     subCategory: 'Apparel',
-    description: 'Warm and cozy winter knit woollen beanie cap with custom sublimation printed emblem patch (including cap). Comfortable stretch fit.',
+    description: 'Warm and cozy winter knit woollen beanie cap with custom sublimation printed emblem patch (price includes the cap). Comfortable stretch fit.',
     price: 120,
     costPrice: 55,
     compareAtPrice: 199,
@@ -259,17 +304,17 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.6,
     reviewsCount: 22,
     deliveryLabel: 'Dispatched in 24 Hours',
-    tags: ['woollen cap sublimation', 'woollen cap', 'beanie', 'winter cap', 'cap'],
+    tags: ['woollen cap sublimation (including cap)', 'woollen cap', 'beanie', 'winter cap', 'cap', 'personal'],
     occasion: 'Personal',
     isActive: true
   },
   {
     id: 'gft-pg-09',
-    name: 'Acrylic Standee',
+    name: 'Acrylic Standee (per piece)',
     slug: 'acrylic-standee',
     category: 'Personalized Gifts',
     subCategory: 'Standees',
-    description: 'Custom contour laser-cut thick acrylic photo standee with solid acrylic display base. Crystal-clear optical grade finish for desk or shelf.',
+    description: 'Custom contour laser-cut thick acrylic photo standee with solid acrylic display base (₹450 per piece). Crystal-clear optical grade finish for desk or shelf.',
     price: 450,
     costPrice: 190,
     compareAtPrice: 650,
@@ -284,7 +329,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.9,
     reviewsCount: 64,
     deliveryLabel: 'Dispatched in 24-48 Hours',
-    tags: ['acrylic standee', 'standee', 'acrylic cutout', 'photo standee', 'cutout standee'],
+    tags: ['acrylic standee (per piece)', 'acrylic standee', 'standee', 'acrylic cutout', 'photo standee', 'cutout standee', 'anniversary'],
     occasion: 'Anniversary',
     isActive: true
   },
@@ -309,7 +354,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.8,
     reviewsCount: 88,
     deliveryLabel: 'Dispatched in 24-48 Hours',
-    tags: ['glass mobile covers', 'glass phone cover', 'mobile cover', 'phone case', 'glass case'],
+    tags: ['glass mobile covers', 'glass phone cover', 'mobile cover', 'phone case', 'glass case', 'personal'],
     occasion: 'Personal',
     isActive: true
   },
@@ -333,7 +378,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.7,
     reviewsCount: 52,
     deliveryLabel: 'Dispatched in 24 Hours',
-    tags: ['plastic mobile covers', 'hard phone cover', 'plastic case', 'mobile cover', 'phone case'],
+    tags: ['plastic mobile covers', 'hard phone cover', 'plastic case', 'mobile cover', 'phone case', 'personal'],
     occasion: 'Personal',
     isActive: true
   },
@@ -358,7 +403,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.8,
     reviewsCount: 61,
     deliveryLabel: 'Dispatched in 24 Hours',
-    tags: ['rubber mobile covers', 'silicone mobile cover', 'soft case', 'mobile cover', 'phone case'],
+    tags: ['rubber mobile covers', 'silicone mobile cover', 'soft case', 'mobile cover', 'phone case', 'personal'],
     occasion: 'Personal',
     isActive: true
   },
@@ -380,15 +425,15 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 5.0,
     reviewsCount: 0,
     deliveryLabel: 'Coming Soon',
-    tags: ['wallets', 'wallet', 'leather wallet', 'personalized wallet', 'coming soon'],
+    tags: ['wallets', 'wallet', 'leather wallet', 'personalized wallet', 'coming soon', 'birthday'],
     occasion: 'Birthday',
     isActive: true
   },
   {
-    id: 'gft-pg-cs2',
+    id: 'gft-gh-cs2',
     name: 'Customized Gift Hampers',
     slug: 'customized-gift-hampers',
-    category: 'Personalized Gifts',
+    category: 'Gift Hampers',
     subCategory: 'Hampers',
     description: 'Curated luxury gifting boxes with custom mug, frame, chocolates, and personalized greeting card. Launching shortly.',
     price: 999,
@@ -402,19 +447,19 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 5.0,
     reviewsCount: 0,
     deliveryLabel: 'Coming Soon',
-    tags: ['customized gift hampers', 'gift hampers', 'hamper', 'gift box', 'coming soon'],
+    tags: ['customized gift hampers', 'gift hampers', 'hamper', 'gift box', 'coming soon', 'festival', 'anniversary'],
     occasion: 'Festival',
     isActive: true
   },
 
   // =========================================================================
-  // CATEGORY B: 3D PRINTS
+  // CATEGORY B: 3D ARTS / 3D PRINTS (Placed under existing 3D Arts category)
   // =========================================================================
   {
     id: 'gft-3d-01',
     name: 'Ganesh Murti',
     slug: 'ganesh-murti',
-    category: '3D Prints',
+    category: '3D Arts',
     subCategory: 'Spiritual',
     description: 'Intricately designed 3D printed Ganpati idol with gold/bronze detailing. Lightweight, highly detailed eco-friendly PLA material.',
     price: 200,
@@ -431,7 +476,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.9,
     reviewsCount: 43,
     deliveryLabel: 'Dispatched in 24 Hours',
-    tags: ['ganesh murti', 'ganpati idol', '3d ganesh', 'spiritual idol', '3d print'],
+    tags: ['ganesh murti', 'ganpati idol', '3d ganesh', 'spiritual idol', '3d print', '3d arts', 'spiritual'],
     occasion: 'Spiritual',
     isActive: true
   },
@@ -439,7 +484,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     id: 'gft-3d-02',
     name: 'Skeleton Keychain',
     slug: 'skeleton-keychain',
-    category: '3D Prints',
+    category: '3D Arts',
     subCategory: 'Keychains',
     description: 'Fully articulated 3D printed flexible skeleton keychain with moving joints. Fun, durable, and highly collectible.',
     price: 150,
@@ -455,7 +500,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.8,
     reviewsCount: 56,
     deliveryLabel: 'Dispatched in 24 Hours',
-    tags: ['skeleton keychain', '3d keychain', 'articulated keychain', 'flexible skeleton', '3d print'],
+    tags: ['skeleton keychain', '3d keychain', 'articulated keychain', 'flexible skeleton', '3d print', '3d arts', 'personal'],
     occasion: 'Personal',
     isActive: true
   },
@@ -463,7 +508,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     id: 'gft-3d-03',
     name: 'Moon',
     slug: 'moon',
-    category: '3D Prints',
+    category: '3D Arts',
     subCategory: 'Lamps',
     description: 'Realistic 3D printed lunar surface moon lamp with warm glow. Includes sleek wooden stand.',
     price: 500,
@@ -479,7 +524,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.9,
     reviewsCount: 71,
     deliveryLabel: 'Dispatched in 24-48 Hours',
-    tags: ['moon', 'moon lamp', '3d moon', 'lunar lamp', 'night lamp', '3d print'],
+    tags: ['moon', 'moon lamp', '3d moon', 'lunar lamp', 'night lamp', '3d print', '3d arts', 'birthday'],
     occasion: 'Birthday',
     isActive: true
   },
@@ -487,7 +532,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     id: 'gft-3d-04',
     name: 'Moon with Customization',
     slug: 'moon-with-customization',
-    category: '3D Prints',
+    category: '3D Arts',
     subCategory: 'Lamps',
     description: 'Personalized 3D printed lithophane moon lamp embossed with your custom couple photo and warm heart message. Includes wooden stand.',
     price: 600,
@@ -505,7 +550,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 5.0,
     reviewsCount: 94,
     deliveryLabel: 'Dispatched in 48 Hours',
-    tags: ['moon with customization', 'custom moon lamp', 'personalized moon lamp', 'photo moon lamp', '3d print'],
+    tags: ['moon with customization', 'custom moon lamp', 'personalized moon lamp', 'photo moon lamp', '3d print', '3d arts', 'anniversary'],
     occasion: 'Anniversary',
     isActive: true
   },
@@ -513,9 +558,9 @@ export const INITIAL_PRODUCTS: Product[] = [
     id: 'gft-3d-05',
     name: 'Couple Statues',
     slug: 'couple-statues',
-    category: '3D Prints',
+    category: '3D Arts',
     subCategory: 'Statues',
-    description: 'Custom handcrafted 3D printed couple miniature figurine crafted from reference photographs. Starting from ₹900 (final price depends on size and customization of 3D elements; enquire for final quotation).',
+    description: 'Custom handcrafted 3D printed couple miniature figurine crafted from reference photographs. Starting from ₹900 (final price depends on the size of the 3D elements; enquire for quotation).',
     price: 900,
     costPrice: 420,
     compareAtPrice: 1299,
@@ -525,7 +570,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     customizable: true,
     isStartingPrice: true,
     startingPriceAmount: 900,
-    customizationInstructions: 'Upload front and side facing photos of both individuals. Note: Final pricing depends on size and complexity.',
+    customizationInstructions: 'Upload front and side facing photos of both individuals. Note: Final pricing depends on size and complexity of 3D elements.',
     stock: 25,
     featured: true,
     bestSeller: true,
@@ -533,13 +578,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.9,
     reviewsCount: 52,
     deliveryLabel: 'Dispatched in 3-5 Days',
-    tags: ['couple statues', 'couple miniature', '3d couple statue', '3d figurine', 'anniversary gift', '3d print'],
+    tags: ['couple statues', 'couple miniature', '3d couple statue', '3d figurine', 'anniversary gift', '3d print', '3d arts', 'anniversary'],
     occasion: 'Anniversary',
     isActive: true
   },
 
   // =========================================================================
-  // CATEGORY C: FRAMES
+  // CATEGORY C: FRAMES (Existing & newly added frames category)
   // =========================================================================
   {
     id: 'gft-fr-01',
@@ -561,7 +606,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.9,
     reviewsCount: 35,
     deliveryLabel: 'Dispatched in 24 Hours',
-    tags: ['सरस्वती frame 4x4', 'saraswati frame', 'spiritual frame', 'photo frame', '4x4 frame'],
+    tags: ['सरस्वती frame 4x4', 'saraswati frame', 'spiritual frame', 'photo frame', '4x4 frame', 'frames', 'spiritual'],
     occasion: 'Spiritual',
     isActive: true
   },
@@ -585,7 +630,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.9,
     reviewsCount: 42,
     deliveryLabel: 'Dispatched in 24 Hours',
-    tags: ['ganpati frame 4x4', 'ganpati frame', 'ganesh frame', 'photo frame', '4x4 frame'],
+    tags: ['ganpati frame 4x4', 'ganpati frame', 'ganesh frame', 'photo frame', '4x4 frame', 'frames', 'spiritual'],
     occasion: 'Spiritual',
     isActive: true
   }

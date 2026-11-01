@@ -8,7 +8,11 @@ import { businessConfig } from '../config/businessConfig';
 
 function resolveCategoryFromPath(pathname: string, searchParam: string | null): string {
   if (searchParam) {
-    if (searchParam.toLowerCase().includes('3d')) return '3D Prints';
+    const matched = CATEGORIES_LIST.find(
+      c => c.name.toLowerCase() === searchParam.toLowerCase() || c.slug === searchParam.toLowerCase()
+    );
+    if (matched) return matched.name;
+    if (searchParam.toLowerCase().includes('3d')) return '3D Arts';
     return searchParam;
   }
 
@@ -17,12 +21,22 @@ function resolveCategoryFromPath(pathname: string, searchParam: string | null): 
     const slug = lower.replace('/category/', '').trim();
     const matched = CATEGORIES_LIST.find(c => c.slug === slug);
     if (matched) return matched.name;
-    if (slug.includes('3d')) return '3D Prints';
+    if (slug.includes('3d')) return '3D Arts';
   }
 
+  // Check matching slug from path directly
+  const cleanPath = lower.replace(/^\//, '').split('?')[0].split('/')[0];
+  const matchedBySlug = CATEGORIES_LIST.find(c => c.slug === cleanPath);
+  if (matchedBySlug) return matchedBySlug.name;
+
   if (lower.includes('personalized')) return 'Personalized Gifts';
-  if (lower.includes('3d') || lower.includes('prints') || lower.includes('arts')) return '3D Prints';
+  if (lower.includes('3d') || lower.includes('prints') || lower.includes('arts')) return '3D Arts';
   if (lower.includes('frame')) return 'Frames';
+  if (lower.includes('bloom') || lower.includes('flower')) return 'Forever Blooms';
+  if (lower.includes('hamper')) return 'Gift Hampers';
+  if (lower.includes('jewel')) return 'Jewellery';
+  if (lower.includes('birthday')) return 'Birthday Gifts';
+  if (lower.includes('anniversary')) return 'Anniversary Gifts';
 
   return 'All';
 }
@@ -73,10 +87,17 @@ export const ShopPage: React.FC = () => {
       if (selectedCategory !== 'All') {
         const prodCat = product.category.toLowerCase().replace(/[^\w]/g, '');
         const selCat = selectedCategory.toLowerCase().replace(/[^\w]/g, '');
-        if (prodCat !== selCat) {
-          const matchTag = product.tags?.some(t => t.toLowerCase().includes(selCat));
-          if (!matchTag) return false;
+        let matchesCategory = prodCat === selCat || prodCat.includes(selCat) || selCat.includes(prodCat);
+        
+        if (!matchesCategory) {
+          const matchTag = product.tags?.some(t => {
+            const normTag = t.toLowerCase().replace(/[^\w]/g, '');
+            return selCat.includes(normTag) || normTag.includes(selCat);
+          });
+          if (matchTag) matchesCategory = true;
         }
+
+        if (!matchesCategory) return false;
       }
 
       if (selectedOccasion !== 'All') {

@@ -3,9 +3,14 @@ export type CustomizationType = string;
 
 export type ProductCategory = 
   | 'Personalized Gifts'
-  | '3D Prints'
-  | 'Frames'
   | '3D Arts'
+  | 'Frames'
+  | 'Forever Blooms'
+  | 'Gift Hampers'
+  | 'Birthday Gifts'
+  | 'Anniversary Gifts'
+  | 'Jewellery'
+  | '3D Prints'
   | string;
 
 export interface ProductVariant {
