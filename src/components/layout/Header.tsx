@@ -20,6 +20,7 @@ import {
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useAdmin } from '../../context/AdminContext';
+import { useAuth } from '../../context/AuthContext';
 import { CATEGORIES_LIST } from '../../data/products';
 import { businessConfig } from '../../config/businessConfig';
 import { searchProducts } from '../../utils/searchUtils';
@@ -27,6 +28,7 @@ import { validateMaharashtraPincode, DEFAULT_PINCODE_LABEL } from '../../utils/p
 
 export const Header: React.FC = () => {
   const [location, setLocation] = useLocation();
+  const { user } = useAuth();
   const { cartCount } = useCart();
   const { wishlistCount } = useWishlist();
   const { products } = useAdmin();
@@ -171,14 +173,6 @@ export const Header: React.FC = () => {
                 <MessageCircle className="w-3.5 h-3.5 text-emerald-300" />
                 <span>WhatsApp: {businessConfig.rawPhone}</span>
               </a>
-              <Link 
-                href="/admin" 
-                className="hidden md:flex items-center gap-1 bg-white/15 hover:bg-white/25 px-2 py-0.5 rounded text-[10px] font-bold text-white transition-colors"
-                title="Admin Portal"
-              >
-                <ShieldCheck className="w-3 h-3 text-amber-300" />
-                Admin Panel
-              </Link>
             </div>
           </div>
         </div>
@@ -325,10 +319,12 @@ export const Header: React.FC = () => {
             <Link 
               href="/account" 
               className="flex items-center gap-1.5 text-slate-700 hover:text-sky-600 p-2 rounded-xl hover:bg-sky-50 transition-colors"
-              title="My Account"
+              title={user ? `Signed in as ${user.name}` : "Login / My Account"}
             >
-              <User className="w-5 h-5" />
-              <span className="text-xs font-semibold hidden md:inline">Account</span>
+              <User className="w-5 h-5 text-sky-600" />
+              <span className="text-xs font-semibold hidden md:inline">
+                {user ? `Welcome, ${user.name.split(' ')[0]}!` : 'Login / My Account'}
+              </span>
             </Link>
 
             <Link 
@@ -554,18 +550,11 @@ export const Header: React.FC = () => {
 
               <div className="pt-4 border-t border-sky-100 mt-4 space-y-1">
                 <Link
-                  href="/admin"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2 text-sm font-bold text-amber-700 bg-amber-50 rounded-lg"
-                >
-                  🛡️ Admin Dashboard
-                </Link>
-                <Link
                   href="/account"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2 text-sm text-slate-600 hover:bg-sky-50 rounded-lg"
+                  className="block px-3 py-2 text-sm text-slate-700 hover:bg-sky-50 rounded-lg font-semibold"
                 >
-                  👤 My Profile & Orders
+                  {user ? `👤 Welcome, ${user.name}!` : '👤 Login / My Account'}
                 </Link>
                 <Link
                   href="/wishlist"

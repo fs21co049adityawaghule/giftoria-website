@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useLocation } from 'wouter';
+import React, { useState, useEffect } from 'react';
+import { useLocation, Link } from 'wouter';
 import { 
   ShieldCheck, 
   Truck, 
@@ -15,12 +15,14 @@ import {
   ArrowRight,
   QrCode,
   Image as ImageIcon,
-  Sparkles
+  Sparkles,
+  Lock
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useOrder } from '../context/OrderContext';
 import { useToast } from '../context/ToastContext';
-import { ShippingAddress, Order } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { ShippingAddress, Order, UserAddress } from '../types';
 import { businessConfig } from '../config/businessConfig';
 import { validateMaharashtraPincode } from '../utils/pincodeUtils';
 
@@ -31,6 +33,7 @@ export const CheckoutPage: React.FC = () => {
   const { cart, subtotal, shippingFee, grandTotal } = useCart();
   const { submitUpiOrder } = useOrder();
   const { showToast } = useToast();
+  const { user, isAuthenticated } = useAuth();
 
   // Form State
   const [fullName, setFullName] = useState('');
@@ -56,6 +59,58 @@ export const CheckoutPage: React.FC = () => {
   const [screenshotFileName, setScreenshotFileName] = useState<string>('');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [submittedOrder, setSubmittedOrder] = useState<Order | null>(null);
+
+  // Restore pending checkout state or autofill from logged in user
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('giftoria_pending_checkout');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.fullName) setFullName(parsed.fullName);
+        if (parsed.mobile) setMobile(parsed.mobile);
+        if (parsed.email) setEmail(parsed.email);
+        if (parsed.addressLine) setAddressLine(parsed.addressLine);
+        if (parsed.city) setCity(parsed.city);
+        if (parsed.pincode) setPincode(parsed.pincode);
+        if (parsed.deliveryDate) setDeliveryDate(parsed.deliveryDate);
+        if (parsed.deliverySlot) setDeliverySlot(parsed.deliverySlot);
+        if (parsed.messageCard) setMessageCard(parsed.messageCard);
+        return;
+      }
+    } catch (e) {
+      console.error('Failed to parse pending checkout', e);
+    }
+
+    if (user) {
+      if (!fullName) setFullName(user.name);
+      if (!mobile) setMobile(user.phone);
+      if (!email) setEmail(user.email);
+
+      // Prepopulate default address if available and form is blank
+      if (!addressLine && user.savedAddresses && user.savedAddresses.length > 0) {
+        const defAddr = user.savedAddresses.find((a) => a.isDefault) || user.savedAddresses[0];
+        setAddressLine(
+          `${defAddr.houseBuilding}, ${defAddr.streetArea}${defAddr.landmark ? ', Near ' + defAddr.landmark : ''}`
+        );
+        setCity(defAddr.city);
+        setPincode(defAddr.pincode);
+        if (defAddr.fullName) setFullName(defAddr.fullName);
+        if (defAddr.mobile) setMobile(defAddr.mobile);
+      }
+    }
+  }, [user]);
+
+  // Handle one-click selection of saved address
+  const handleSelectSavedAddress = (addr: UserAddress) => {
+    setFullName(addr.fullName);
+    setMobile(addr.mobile);
+    setAddressLine(
+      `${addr.houseBuilding}, ${addr.streetArea}${addr.landmark ? ', Near ' + addr.landmark : ''}`
+    );
+    setCity(addr.city);
+    setPincode(addr.pincode);
+    showToast(`Loaded saved address for ${addr.fullName}`, 'info');
+  };
 
   const handleCopyUpi = () => {
     navigator.clipboard.writeText(businessConfig.upiId);
@@ -97,6 +152,28 @@ export const CheckoutPage: React.FC = () => {
       showToast(pinVal.message, 'warning');
     }
 
+    // REQUIRE LOGIN BEFORE PAYMENT (Requirement 4)
+    if (!isAuthenticated) {
+      // Save current checkout form state to restore after login
+      sessionStorage.setItem(
+        'giftoria_pending_checkout',
+        JSON.stringify({
+          fullName,
+          mobile,
+          email,
+          addressLine,
+          city,
+          pincode,
+          deliveryDate,
+          deliverySlot,
+          messageCard,
+        })
+      );
+      showToast('Please sign in or create an account to proceed with payment.', 'info');
+      setLocation('/account?redirect=/checkout');
+      return;
+    }
+
     setCheckoutStage('payment');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -126,6 +203,12 @@ export const CheckoutPage: React.FC = () => {
   };
 
   const handleFinalSubmitPayment = () => {
+    if (!isAuthenticated) {
+      showToast('Please sign in to your account to complete payment.', 'error');
+      setLocation('/account?redirect=/checkout');
+      return;
+    }
+
     if (!screenshotDataUrl) {
       setUploadError('Please select and upload your payment screenshot before submitting.');
       showToast('Please upload your payment screenshot.', 'error');
@@ -156,6 +239,9 @@ export const CheckoutPage: React.FC = () => {
       screenshotDataUrl,
       screenshotFileName || 'payment_screenshot.jpg'
     );
+
+    // Clear pending checkout cache
+    sessionStorage.removeItem('giftoria_pending_checkout');
 
     setSubmittedOrder(newOrder);
     setCheckoutStage('submitted');
@@ -316,6 +402,85 @@ export const CheckoutPage: React.FC = () => {
         {checkoutStage === 'details' && (
           <form onSubmit={handleProceedToPayment} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
+
+              {/* Login Notice Banner for Guest */}
+              {!isAuthenticated && (
+                <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-900 shadow-xs">
+                  <div>
+                    <div className="flex items-center gap-1.5 font-bold text-amber-800 text-sm">
+                      <Lock className="w-4 h-4 text-amber-600" />
+                      <span>Account Required for Order & Payment</span>
+                    </div>
+                    <p className="text-xs text-amber-700 mt-1">
+                      You can fill your delivery details below, or sign in now. Authentication is required before completing payment.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sessionStorage.setItem(
+                        'giftoria_pending_checkout',
+                        JSON.stringify({
+                          fullName,
+                          mobile,
+                          email,
+                          addressLine,
+                          city,
+                          pincode,
+                          deliveryDate,
+                          deliverySlot,
+                          messageCard,
+                        })
+                      );
+                      setLocation('/account?redirect=/checkout');
+                    }}
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs shrink-0 self-start sm:self-auto shadow-sm"
+                  >
+                    Sign In / Register →
+                  </button>
+                </div>
+              )}
+
+              {/* Saved Addresses Selector (for authenticated customer) */}
+              {isAuthenticated && user && user.savedAddresses && user.savedAddresses.length > 0 && (
+                <div className="bg-white rounded-3xl border border-sky-100 p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-sky-500" />
+                      Select from Saved Delivery Addresses
+                    </span>
+                    <Link href="/account" className="text-xs font-bold text-sky-600 hover:underline">
+                      Manage Addresses
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {user.savedAddresses.map((addr) => (
+                      <button
+                        key={addr.id}
+                        type="button"
+                        onClick={() => handleSelectSavedAddress(addr)}
+                        className="text-left p-3 bg-slate-50 border border-sky-100 hover:border-sky-400 hover:bg-sky-50/50 rounded-2xl transition-all text-xs"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-800">{addr.fullName}</span>
+                          {addr.isDefault && (
+                            <span className="bg-sky-100 text-sky-700 text-[9px] font-bold px-2 py-0.5 rounded-full">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">
+                          {addr.houseBuilding}, {addr.streetArea}, {addr.city}
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          PIN: {addr.pincode} • {addr.mobile}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Recipient Details */}
               <div className="bg-white rounded-3xl border border-sky-100 p-6 shadow-xs space-y-4">
                 <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -331,7 +496,7 @@ export const CheckoutPage: React.FC = () => {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Aditya Waghule"
+                      placeholder="Recipient full name"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       className="w-full bg-slate-50 border border-sky-100 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:border-sky-500"

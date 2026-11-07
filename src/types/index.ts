@@ -258,3 +258,26 @@ export interface Toast {
   type: 'success' | 'error' | 'info' | 'warning';
   message: string;
 }
+
+export interface UserAddress {
+  id: string;
+  fullName: string;
+  mobile: string;
+  houseBuilding: string;
+  streetArea: string;
+  landmark?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  isDefault?: boolean;
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: 'customer' | 'admin';
+  savedAddresses: UserAddress[];
+  createdAt: string;
+}

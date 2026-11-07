@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Route, Switch, useLocation } from 'wouter';
 import { ToastProvider } from './context/ToastContext';
+import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { OrderProvider } from './context/OrderContext';
@@ -29,6 +30,7 @@ import { RefundPage } from './pages/RefundPage';
 import { AccountPage } from './pages/AccountPage';
 import { OrderHistoryPage } from './pages/OrderHistoryPage';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { AdminLoginPage } from './pages/AdminLoginPage';
 
 // Helper component to scroll to top on route navigation
 const ScrollToTop: React.FC = () => {
@@ -42,30 +44,32 @@ const ScrollToTop: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <ToastProvider>
-      <AdminProvider>
-        <WishlistProvider>
-          <CartProvider>
-            <OrderProvider>
-              <div className="min-h-screen flex flex-col justify-between bg-[#F8FCFF] text-slate-900 selection:bg-sky-200 selection:text-sky-900 font-sans">
-                <ScrollToTop />
-                <Header />
-                <main className="flex-1">
-                  <Switch>
-                    <Route path="/" component={HomePage} />
-                    <Route path="/products" component={ShopPage} />
-                    <Route path="/category/:slug" component={ShopPage} />
-                    <Route path="/frames" component={ShopPage} />
-                    <Route path="/3d-prints" component={ShopPage} />
-                    <Route path="/3d-arts" component={ShopPage} />
-                    <Route path="/personalized-gifts" component={ShopPage} />
-                    <Route path="/forever-blooms" component={ShopPage} />
-                    <Route path="/gift-hampers" component={ShopPage} />
-                    <Route path="/jewellery" component={ShopPage} />
-                    <Route path="/birthday-gifts" component={ShopPage} />
-                    <Route path="/anniversary-gifts" component={ShopPage} />
-                    
-                    {/* Admin Dashboard */}
-                    <Route path="/admin" component={AdminDashboard} />
+      <AuthProvider>
+        <AdminProvider>
+          <WishlistProvider>
+            <CartProvider>
+              <OrderProvider>
+                <div className="min-h-screen flex flex-col justify-between bg-[#F8FCFF] text-slate-900 selection:bg-sky-200 selection:text-sky-900 font-sans">
+                  <ScrollToTop />
+                  <Header />
+                  <main className="flex-1">
+                    <Switch>
+                      <Route path="/" component={HomePage} />
+                      <Route path="/products" component={ShopPage} />
+                      <Route path="/category/:slug" component={ShopPage} />
+                      <Route path="/frames" component={ShopPage} />
+                      <Route path="/3d-prints" component={ShopPage} />
+                      <Route path="/3d-arts" component={ShopPage} />
+                      <Route path="/personalized-gifts" component={ShopPage} />
+                      <Route path="/forever-blooms" component={ShopPage} />
+                      <Route path="/gift-hampers" component={ShopPage} />
+                      <Route path="/jewellery" component={ShopPage} />
+                      <Route path="/birthday-gifts" component={ShopPage} />
+                      <Route path="/anniversary-gifts" component={ShopPage} />
+                      
+                      {/* Admin Portal Routes */}
+                      <Route path="/admin/login" component={AdminLoginPage} />
+                      <Route path="/admin" component={AdminDashboard} />
                     
                     {/* Backward compatibility routes */}
                     <Route path="/flowers" component={ShopPage} />
@@ -112,6 +116,7 @@ export const App: React.FC = () => {
         </CartProvider>
       </WishlistProvider>
     </AdminProvider>
+    </AuthProvider>
   </ToastProvider>
   );
 };

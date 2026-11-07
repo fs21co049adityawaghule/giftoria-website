@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useAdmin } from '../context/AdminContext';
 import { useOrder } from '../context/OrderContext';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import { 
   Product, 
   ProductCategory, 
@@ -62,6 +63,7 @@ export const AdminDashboard: React.FC = () => {
     clearAllOrders
   } = useOrder();
   const { showToast } = useToast();
+  const { isAdminAuthenticated, adminLogin, adminLogout } = useAuth();
 
   // Authentication PIN Gate
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -147,24 +149,24 @@ export const AdminDashboard: React.FC = () => {
     deliveryStatus: 'Not Dispatched',
   });
 
-  // Handle PIN authentication
+  // Handle PIN or Admin Authentication
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pinInput === 'giftoria2026' || pinInput === 'admin123' || pinInput === '8356829605') {
+    const success = adminLogin('admin', pinInput);
+    if (success) {
       sessionStorage.setItem('giftoria_admin_auth', 'true');
       setIsAuthenticated(true);
       setPinError('');
-      showToast('Admin access granted', 'success');
     } else {
-      setPinError('Invalid security PIN. Please enter authorized admin PIN.');
+      setPinError('Invalid security PIN or password. Access denied.');
     }
   };
 
   const handleLogout = () => {
+    adminLogout();
     sessionStorage.removeItem('giftoria_admin_auth');
     setIsAuthenticated(false);
     setPinInput('');
-    showToast('Logged out of admin panel', 'info');
   };
 
   // Helper: check if order is cancelled
@@ -496,9 +498,13 @@ export const AdminDashboard: React.FC = () => {
   const handleAddProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProd.name.trim() || newProd.price <= 0) {
-      showToast('Please enter a valid product name and selling price', 'error');
+      showToast('Please enter a valid product name and selling price (> 0)', 'error');
       return;
     }
+
+    const resolvedThumbnail = (newProd.thumbnail && newProd.thumbnail.trim())
+      ? newProd.thumbnail.trim()
+      : 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=600';
 
     const slug = newProd.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const productPayload: Omit<Product, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -510,8 +516,8 @@ export const AdminDashboard: React.FC = () => {
       costPrice: Number(newProd.costPrice || 0), // Admin confidential
       compareAtPrice: Math.round(Number(newProd.price) * 1.3),
       currency: '₹',
-      images: [newProd.thumbnail],
-      thumbnail: newProd.thumbnail,
+      images: [resolvedThumbnail],
+      thumbnail: resolvedThumbnail,
       customizable: newProd.customizable,
       stock: Number(newProd.stock),
       featured: true,
@@ -545,15 +551,27 @@ export const AdminDashboard: React.FC = () => {
     e.preventDefault();
     if (!editingProduct) return;
 
+    if (!editingProduct.name.trim() || Number(editingProduct.price) <= 0) {
+      showToast('Please enter a valid product name and selling price (> 0)', 'error');
+      return;
+    }
+
+    // If image URL is left blank or whitespace, retain product's existing image (Requirement 1)
+    const existing = products.find((p) => p.id === editingProduct.id);
+    const resolvedThumbnail =
+      editingProduct.thumbnail && editingProduct.thumbnail.trim()
+        ? editingProduct.thumbnail.trim()
+        : (existing?.thumbnail || existing?.images?.[0] || 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=600');
+
     updateProduct(editingProduct.id, {
-      name: editingProduct.name,
+      name: editingProduct.name.trim(),
       category: editingProduct.category,
       description: editingProduct.description,
       price: Number(editingProduct.price),
       costPrice: Number(editingProduct.costPrice || 0), // Admin confidential
       stock: Number(editingProduct.stock),
-      thumbnail: editingProduct.thumbnail,
-      images: [editingProduct.thumbnail],
+      thumbnail: resolvedThumbnail,
+      images: [resolvedThumbnail],
       customizable: editingProduct.customizable,
       isComingSoon: editingProduct.isComingSoon,
       isActive: editingProduct.isActive !== false,
@@ -579,9 +597,9 @@ export const AdminDashboard: React.FC = () => {
   };
 
   // =========================================================================
-  // IF NOT AUTHENTICATED: PIN LOCK GATE
+  // IF NOT AUTHENTICATED: PIN LOCK GATE & ADMIN PORTAL
   // =========================================================================
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isAdminAuthenticated) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4 py-16 bg-[#F8FCFF]">
         <div className="bg-white rounded-3xl border border-sky-100 shadow-xl max-w-md w-full p-8 text-center space-y-6">
@@ -2521,10 +2539,13 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Image URL</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-700">Image URL</label>
+                  <span className="text-[10px] text-slate-400">Optional</span>
+                </div>
                 <input
-                  type="url"
-                  required
+                  type="text"
+                  placeholder="https://... or /assets/products/... (Optional)"
                   value={newProd.thumbnail}
                   onChange={(e) => setNewProd({ ...newProd, thumbnail: e.target.value })}
                   className="w-full bg-slate-50 border border-sky-100 rounded-xl p-2.5 text-xs text-slate-800"
@@ -2665,10 +2686,14 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Image URL</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-700">Image URL</label>
+                  <span className="text-[10px] text-slate-400">Optional (Leave blank to keep existing image)</span>
+                </div>
                 <input
-                  type="url"
-                  value={editingProduct.thumbnail}
+                  type="text"
+                  placeholder="Leave blank to retain current product image"
+                  value={editingProduct.thumbnail || ''}
                   onChange={(e) => setEditingProduct({ ...editingProduct, thumbnail: e.target.value })}
                   className="w-full bg-slate-50 border border-sky-100 rounded-xl p-2.5 text-xs text-slate-800"
                 />
