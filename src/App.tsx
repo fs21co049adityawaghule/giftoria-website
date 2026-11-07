@@ -42,6 +42,9 @@ const ScrollToTop: React.FC = () => {
 };
 
 export const App: React.FC = () => {
+  const [location] = useLocation();
+  const isAdminRoute = location.startsWith('/admin');
+
   return (
     <ToastProvider>
       <AuthProvider>
@@ -51,9 +54,10 @@ export const App: React.FC = () => {
               <OrderProvider>
                 <div className="min-h-screen flex flex-col justify-between bg-[#F8FCFF] text-slate-900 selection:bg-sky-200 selection:text-sky-900 font-sans">
                   <ScrollToTop />
-                  <Header />
+                  {!isAdminRoute && <Header />}
                   <main className="flex-1">
                     <Switch>
+                      {/* Customer Storefront Routes */}
                       <Route path="/" component={HomePage} />
                       <Route path="/products" component={ShopPage} />
                       <Route path="/category/:slug" component={ShopPage} />
@@ -67,9 +71,10 @@ export const App: React.FC = () => {
                       <Route path="/birthday-gifts" component={ShopPage} />
                       <Route path="/anniversary-gifts" component={ShopPage} />
                       
-                      {/* Admin Portal Routes */}
+                      {/* Dedicated Admin Portal Routes */}
                       <Route path="/admin/login" component={AdminLoginPage} />
-                      <Route path="/admin" component={AdminDashboard} />
+                      <Route path="/admin/:tab?" component={AdminDashboard} />
+                      <Route path="/admin/*" component={AdminDashboard} />
                     
                     {/* Backward compatibility routes */}
                     <Route path="/flowers" component={ShopPage} />
@@ -108,9 +113,9 @@ export const App: React.FC = () => {
                   </Route>
                 </Switch>
               </main>
-              <Footer />
-              <MobileNav />
-              <FloatingWhatsapp />
+              {!isAdminRoute && <Footer />}
+              {!isAdminRoute && <MobileNav />}
+              {!isAdminRoute && <FloatingWhatsapp />}
             </div>
           </OrderProvider>
         </CartProvider>

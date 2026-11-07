@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { ShieldCheck, Lock, User, ArrowRight, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -14,11 +14,16 @@ export const AdminLoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Parse redirect query param to preserve intended admin route
+  const queryParams = new URLSearchParams(window.location.search);
+  const redirectTarget = queryParams.get('redirect') || '/admin';
+
   // If already authenticated as admin, allow direct entry
-  if (isAdminAuthenticated) {
-    setLocation('/admin');
-    return null;
-  }
+  useEffect(() => {
+    if (isAdminAuthenticated) {
+      setLocation(redirectTarget);
+    }
+  }, [isAdminAuthenticated, redirectTarget, setLocation]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +39,7 @@ export const AdminLoginPage: React.FC = () => {
     setIsLoading(false);
 
     if (success) {
-      setLocation('/admin');
+      setLocation(redirectTarget);
     } else {
       setError('Invalid admin credentials. Access denied.');
       showToast('Unauthorized: Invalid administrator credentials.', 'error');

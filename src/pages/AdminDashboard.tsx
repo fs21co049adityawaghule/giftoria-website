@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation } from 'wouter';
 import { useAdmin } from '../context/AdminContext';
 import { useOrder } from '../context/OrderContext';
 import { useToast } from '../context/ToastContext';
@@ -64,6 +65,25 @@ export const AdminDashboard: React.FC = () => {
   } = useOrder();
   const { showToast } = useToast();
   const { isAdminAuthenticated, adminLogin, adminLogout } = useAuth();
+  const [location, setLocation] = useLocation();
+
+  // Helper to detect initial tab from URL path /admin/:tab
+  const getInitialTab = (): AdminTab => {
+    try {
+      const segments = window.location.pathname.split('/').filter(Boolean);
+      if (segments[0] === 'admin' && segments[1]) {
+        const validTabs: AdminTab[] = [
+          'dashboard', 'orders', 'sales', 'payments', 'products', 'profits', 'delivery', 'settings'
+        ];
+        if (validTabs.includes(segments[1] as AdminTab)) {
+          return segments[1] as AdminTab;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return 'dashboard';
+  };
 
   // Authentication PIN Gate
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -72,8 +92,34 @@ export const AdminDashboard: React.FC = () => {
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
 
-  // Active Tab
-  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+  // Active Tab synced with URL
+  const [activeTab, setActiveTab] = useState<AdminTab>(getInitialTab);
+
+  // Sync activeTab whenever URL location changes
+  useEffect(() => {
+    const segments = location.split('/').filter(Boolean);
+    if (segments[0] === 'admin') {
+      const tabSegment = segments[1];
+      const validTabs: AdminTab[] = [
+        'dashboard', 'orders', 'sales', 'payments', 'products', 'profits', 'delivery', 'settings'
+      ];
+      if (tabSegment && validTabs.includes(tabSegment as AdminTab)) {
+        if (activeTab !== tabSegment) {
+          setActiveTab(tabSegment as AdminTab);
+        }
+      } else if (!tabSegment && activeTab !== 'dashboard') {
+        setActiveTab('dashboard');
+      }
+    }
+  }, [location, activeTab]);
+
+  const handleTabChange = (newTab: AdminTab) => {
+    setActiveTab(newTab);
+    const target = newTab === 'dashboard' ? '/admin' : `/admin/${newTab}`;
+    if (location !== target) {
+      setLocation(target);
+    }
+  };
 
   // Shared Time Filter for Sales & Profits
   const [timeFilter, setTimeFilter] = useState<TimePeriod>('monthly');
@@ -167,6 +213,8 @@ export const AdminDashboard: React.FC = () => {
     sessionStorage.removeItem('giftoria_admin_auth');
     setIsAuthenticated(false);
     setPinInput('');
+    showToast('Admin session logged out safely.', 'info');
+    setLocation('/admin/login');
   };
 
   // Helper: check if order is cancelled
@@ -634,6 +682,16 @@ export const AdminDashboard: React.FC = () => {
             >
               Unlock Business Portal
             </button>
+
+            <div className="pt-1 text-center">
+              <button
+                type="button"
+                onClick={() => setLocation('/admin/login')}
+                className="text-xs font-bold text-sky-600 hover:text-sky-700 hover:underline"
+              >
+                Sign in with Admin Username &amp; Password →
+              </button>
+            </div>
           </form>
 
           <p className="text-[11px] text-slate-400">
@@ -709,7 +767,7 @@ export const AdminDashboard: React.FC = () => {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as AdminTab)}
+                onClick={() => handleTabChange(tab.id as AdminTab)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shrink-0 ${
                   isActive
                     ? 'bg-sky-500 text-white shadow-md shadow-sky-200'
@@ -790,7 +848,7 @@ export const AdminDashboard: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-slate-900">Recent Customer Orders</h3>
                   <button
-                    onClick={() => setActiveTab('orders')}
+                    onClick={() => handleTabChange('orders')}
                     className="text-xs font-bold text-sky-600 hover:underline"
                   >
                     View All Orders →
@@ -859,7 +917,7 @@ export const AdminDashboard: React.FC = () => {
                 <h3 className="text-sm font-bold text-slate-900">Business Control Center</h3>
                 <div className="space-y-2.5">
                   <button
-                    onClick={() => setActiveTab('payments')}
+                    onClick={() => handleTabChange('payments')}
                     className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-sky-50/60 hover:bg-sky-100/70 border border-sky-200 transition-colors text-left"
                   >
                     <div className="flex items-center gap-3">
@@ -877,7 +935,7 @@ export const AdminDashboard: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => setActiveTab('sales')}
+                    onClick={() => handleTabChange('sales')}
                     className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors text-left"
                   >
                     <div className="flex items-center gap-3">
@@ -890,7 +948,7 @@ export const AdminDashboard: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => setActiveTab('profits')}
+                    onClick={() => handleTabChange('profits')}
                     className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-emerald-50/60 hover:bg-emerald-100/70 border border-emerald-200 transition-colors text-left"
                   >
                     <div className="flex items-center gap-3">
@@ -903,7 +961,7 @@ export const AdminDashboard: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => setActiveTab('delivery')}
+                    onClick={() => handleTabChange('delivery')}
                     className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors text-left"
                   >
                     <div className="flex items-center gap-3">
