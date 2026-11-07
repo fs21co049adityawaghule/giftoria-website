@@ -11,7 +11,7 @@ interface AdminContextType {
   resetProductsToDefault: () => void;
 }
 
-const PRODUCTS_STORAGE_KEY = 'giftoria_products_catalog_v6';
+const PRODUCTS_STORAGE_KEY = 'giftoria_products_catalog_v7';
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
