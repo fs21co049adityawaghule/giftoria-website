@@ -121,6 +121,66 @@ async function uploadScreenshotIfBase64(screenshot: string | undefined, orderId:
   }
 }
 
+// Upload base64 customization files (images, PDFs, documents) to separate blob to keep orders.json fast and durable
+async function uploadCustomizationFileIfBase64(
+  fileDataUrl: string | undefined,
+  orderId: string,
+  filename = 'customization-file'
+): Promise<string | undefined> {
+  if (!fileDataUrl || !fileDataUrl.startsWith('data:')) {
+    return fileDataUrl;
+  }
+
+  try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) return fileDataUrl;
+
+    const matches = fileDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (!matches || matches.length < 3) return fileDataUrl;
+
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    const cleanFilename = (filename || 'customization-file').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storagePath = `giftoria-customizations/${orderId}-${Date.now()}-${cleanFilename}`;
+
+    const uploaded = await put(storagePath, buffer, {
+      access: 'public',
+      addRandomSuffix: false,
+      contentType: mimeType,
+    });
+
+    return uploaded.url;
+  } catch (e) {
+    console.warn('Customization file upload to blob failed, keeping inline:', e);
+    return fileDataUrl;
+  }
+}
+
+async function processCustomizationFiles(itemsList: any[], orderId: string): Promise<any[]> {
+  if (!Array.isArray(itemsList)) return itemsList;
+  const processed = [];
+  for (const it of itemsList) {
+    if (it?.customization?.uploadedFileUrl && it.customization.uploadedFileUrl.startsWith('data:')) {
+      const permanentUrl = await uploadCustomizationFileIfBase64(
+        it.customization.uploadedFileUrl,
+        orderId,
+        it.customization.uploadedFileName || 'customization-file'
+      );
+      processed.push({
+        ...it,
+        customization: {
+          ...it.customization,
+          uploadedFileUrl: permanentUrl,
+        },
+      });
+    } else {
+      processed.push(it);
+    }
+  }
+  return processed;
+}
+
 export default async function handler(req: any, res: any) {
   // Global CORS headers for cross-origin access
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -163,9 +223,15 @@ export default async function handler(req: any, res: any) {
         optimizedScreenshot = await uploadScreenshotIfBase64(optimizedScreenshot, orderId);
       }
 
+      // Process and offload customization files if base64
+      const processedItems = await processCustomizationFiles(newOrderData.items || [], orderId);
+      const processedSnapshots = await processCustomizationFiles(newOrderData.itemSnapshots || [], orderId);
+
       const orderToSave = {
         ...newOrderData,
         orderId,
+        items: processedItems,
+        itemSnapshots: processedSnapshots,
         paymentScreenshot: optimizedScreenshot,
         createdAt: newOrderData.createdAt || now,
         updatedAt: now,
@@ -237,9 +303,15 @@ export default async function handler(req: any, res: any) {
         updatedScreenshot = await uploadScreenshotIfBase64(updatedScreenshot, orderId);
       }
 
+      // Handle customization files if updated
+      let processedItems = body.items !== undefined ? await processCustomizationFiles(body.items, String(orderId)) : existing.items;
+      let processedSnapshots = body.itemSnapshots !== undefined ? await processCustomizationFiles(body.itemSnapshots, String(orderId)) : existing.itemSnapshots;
+
       const updatedOrder = {
         ...existing,
         ...body,
+        items: processedItems,
+        itemSnapshots: processedSnapshots,
         paymentScreenshot: updatedScreenshot,
         deliveryRecord: mergedDelivery,
         updatedAt: now,

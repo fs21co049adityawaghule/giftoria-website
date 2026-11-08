@@ -55,6 +55,9 @@ export const ProductDetailPage: React.FC = () => {
   const [customMessage, setCustomMessage] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [uploadedFileName, setUploadedFileName] = useState('');
+  const [uploadedFileUrl, setUploadedFileUrl] = useState('');
+  const [uploadedFileType, setUploadedFileType] = useState('');
+  const [uploadedFileSizeFormatted, setUploadedFileSizeFormatted] = useState('');
 
   // Maharashtra Pincode checker state
   const [pincode, setPincode] = useState('400001');
@@ -95,6 +98,9 @@ export const ProductDetailPage: React.FC = () => {
         selectedSize: selectedVariant ? selectedVariant.name : undefined,
         selectedWeight: product.availableWeights ? selectedWeight : undefined,
         uploadedFileName: uploadedFileName || undefined,
+        uploadedFileUrl: uploadedFileUrl || undefined,
+        uploadedFileType: uploadedFileType || undefined,
+        uploadedFileSizeFormatted: uploadedFileSizeFormatted || undefined,
         deliverySlot: selectedSlot
       },
       quantity
@@ -110,12 +116,27 @@ export const ProductDetailPage: React.FC = () => {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        showToast('File size exceeds 2MB limit.', 'error');
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('File size exceeds 10MB limit.', 'error');
         return;
       }
-      setUploadedFileName(file.name);
-      showToast(`File "${file.name}" attached successfully!`, 'success');
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setUploadedFileUrl(dataUrl);
+        setUploadedFileName(file.name);
+        setUploadedFileType(file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'));
+        setUploadedFileSizeFormatted(
+          file.size >= 1024 * 1024
+            ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+            : `${Math.round(file.size / 1024)} KB`
+        );
+        showToast(`File "${file.name}" attached successfully!`, 'success');
+      };
+      reader.onerror = () => {
+        showToast('Failed to read file from your device.', 'error');
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -396,15 +417,75 @@ export const ProductDetailPage: React.FC = () => {
 
                   <div>
                     <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                      Upload Custom Photo (Optional, max 2MB)
+                      Upload Custom Photo / Design / PDF (Optional, max 10MB)
                     </label>
-                    <label className="flex items-center justify-center gap-2 p-3 bg-white border border-dashed border-sky-300 rounded-xl cursor-pointer hover:bg-sky-50/50 transition-colors">
-                      <Upload className="w-4 h-4 text-sky-500" />
-                      <span className="text-xs text-sky-700 font-medium">
-                        {uploadedFileName || 'Choose image from device'}
-                      </span>
-                      <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                    <label className="flex items-center justify-between p-3 bg-white border border-dashed border-sky-300 rounded-xl cursor-pointer hover:bg-sky-50/50 transition-colors">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <Upload className="w-4 h-4 text-sky-500 shrink-0" />
+                        <span className="text-xs text-sky-700 font-medium truncate">
+                          {uploadedFileName ? `${uploadedFileName} (${uploadedFileSizeFormatted})` : 'Choose image or PDF from device'}
+                        </span>
+                      </div>
+                      {uploadedFileUrl && (
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full shrink-0">
+                          Attached ✓
+                        </span>
+                      )}
+                      <input 
+                        type="file" 
+                        accept="image/jpeg,image/png,image/webp,image/jpg,image/*,application/pdf,.pdf" 
+                        onChange={handleFileUpload} 
+                        className="hidden" 
+                      />
                     </label>
+
+                    {uploadedFileUrl && uploadedFileType.startsWith('image/') && (
+                      <div className="mt-2 flex items-center gap-2 bg-sky-50/50 p-2 rounded-lg border border-sky-100">
+                        <img src={uploadedFileUrl} alt="Preview" className="w-10 h-10 object-cover rounded-md border border-sky-200" />
+                        <div className="text-[11px] text-slate-600 truncate flex-1">
+                          <span className="font-semibold text-slate-800 block truncate">{uploadedFileName}</span>
+                          <span>{uploadedFileSizeFormatted} • Image ready for print</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setUploadedFileName('');
+                            setUploadedFileUrl('');
+                            setUploadedFileType('');
+                            setUploadedFileSizeFormatted('');
+                          }}
+                          className="text-[10px] text-rose-600 hover:underline px-1 cursor-pointer font-semibold"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+
+                    {uploadedFileUrl && uploadedFileType.includes('pdf') && (
+                      <div className="mt-2 flex items-center gap-2 bg-sky-50/50 p-2 rounded-lg border border-sky-100">
+                        <div className="w-10 h-10 rounded-md bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-xs shrink-0">
+                          PDF
+                        </div>
+                        <div className="text-[11px] text-slate-600 truncate flex-1">
+                          <span className="font-semibold text-slate-800 block truncate">{uploadedFileName}</span>
+                          <span>{uploadedFileSizeFormatted} • Document ready</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setUploadedFileName('');
+                            setUploadedFileUrl('');
+                            setUploadedFileType('');
+                            setUploadedFileSizeFormatted('');
+                          }}
+                          className="text-[10px] text-rose-600 hover:underline px-1 cursor-pointer font-semibold"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

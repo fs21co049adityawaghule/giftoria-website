@@ -43,7 +43,8 @@ import {
   ShieldCheck,
   Filter,
   DollarSign,
-  FileText
+  FileText,
+  Download
 } from 'lucide-react';
 
 type AdminTab = 'dashboard' | 'orders' | 'sales' | 'payments' | 'products' | 'profits' | 'delivery' | 'settings';
@@ -138,6 +139,38 @@ export const AdminDashboard: React.FC = () => {
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const [cancellationReasonInput, setCancellationReasonInput] = useState('');
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
+  const [previewingCustomFile, setPreviewingCustomFile] = useState<{
+    url: string;
+    filename: string;
+    fileType: string;
+    productName: string;
+    orderId: string;
+  } | null>(null);
+
+  const handleDownloadCustomFile = async (url: string, filename: string) => {
+    if (!url) {
+      showToast('File URL is not available.', 'error');
+      return;
+    }
+    try {
+      showToast(`Preparing download for ${filename}...`, 'info');
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('File download failed');
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'customization-file';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      showToast(`Downloaded ${filename} successfully!`, 'success');
+    } catch (err) {
+      console.warn('Direct blob download error, opening in new tab:', err);
+      window.open(url, '_blank');
+    }
+  };
 
   // Payments Tab Filters & Modals
   const [paymentSearchQuery, setPaymentSearchQuery] = useState('');
@@ -2169,7 +2202,9 @@ export const AdminDashboard: React.FC = () => {
                         <div className="text-[10px] text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-100 mt-1">
                           {it.customization.recipientName && <p>• Recipient: {it.customization.recipientName}</p>}
                           {it.customization.customMessage && <p>• Message: "{it.customization.customMessage}"</p>}
-                          {it.customization.uploadedFileName && <p>• File: {it.customization.uploadedFileName}</p>}
+                          {it.customization.uploadedFileName && (
+                            <p className="font-semibold text-sky-700">• Customization File: {it.customization.uploadedFileName}</p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -2180,6 +2215,187 @@ export const AdminDashboard: React.FC = () => {
                 ))}
               </div>
             </div>
+
+            {/* ========================================================================= */}
+            {/* CUSTOMER CUSTOMIZATION FILES SECTION */}
+            {/* ========================================================================= */}
+            {(() => {
+              const lineItems = viewingOrder.itemSnapshots && viewingOrder.itemSnapshots.length > 0
+                ? viewingOrder.itemSnapshots
+                : viewingOrder.items.map(i => ({
+                    productName: i.product.name,
+                    category: i.product.category,
+                    quantity: i.quantity,
+                    sellingPriceSnapshot: i.product.price,
+                    customization: i.customization
+                  }));
+
+              const itemsWithFiles = lineItems.filter(it => 
+                it.customization?.uploadedFileUrl || 
+                it.customization?.uploadedFileName ||
+                (it.customization?.referenceImages && it.customization.referenceImages.length > 0)
+              );
+
+              return (
+                <div className="space-y-3 pt-3 border-t border-sky-100">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                      <span>Customer Customization Files</span>
+                      <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-full">
+                        {itemsWithFiles.length} {itemsWithFiles.length === 1 ? 'file' : 'files'}
+                      </span>
+                    </h4>
+                    <span className="text-[10px] text-slate-500 font-mono">Order #{viewingOrder.orderId}</span>
+                  </div>
+
+                  {itemsWithFiles.length === 0 ? (
+                    <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 text-center">
+                      <p className="text-xs text-slate-500">No customization files uploaded for this order.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {itemsWithFiles.map((it, fIdx) => {
+                        const cust = it.customization || {};
+                        const filename = cust.uploadedFileName || `customization-${it.productName.toLowerCase().replace(/\s+/g, '-')}-${fIdx + 1}.jpg`;
+                        const fileUrl = cust.uploadedFileUrl || (cust.referenceImages && cust.referenceImages[0]);
+                        const fileType = cust.uploadedFileType || (filename.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+                        const fileSize = cust.uploadedFileSizeFormatted || '';
+                        const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(filename);
+                        const isPdf = fileType.includes('pdf') || /\.pdf$/i.test(filename);
+
+                        return (
+                          <div
+                            key={fIdx}
+                            className="bg-white border border-sky-200 rounded-2xl p-4 shadow-xs space-y-3"
+                          >
+                            <div className="flex items-start justify-between gap-3 flex-wrap sm:flex-nowrap">
+                              <div className="space-y-1 min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider bg-sky-50 text-sky-700 px-2 py-0.5 rounded-md">
+                                    {it.productName}
+                                  </span>
+                                  <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-mono">
+                                    {fileType}
+                                  </span>
+                                  {fileSize && (
+                                    <span className="text-[10px] text-slate-400">
+                                      {fileSize}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="font-semibold text-xs text-slate-900 truncate" title={filename}>
+                                  📎 {filename}
+                                </p>
+                                {cust.customMessage && (
+                                  <p className="text-[11px] text-slate-600 italic">
+                                    Customer Note: "{cust.customMessage}"
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Actions: View File and Download File */}
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!fileUrl) {
+                                      showToast('Customization file URL is missing or unavailable.', 'error');
+                                      return;
+                                    }
+                                    setPreviewingCustomFile({
+                                      url: fileUrl,
+                                      filename,
+                                      fileType,
+                                      productName: it.productName,
+                                      orderId: viewingOrder.orderId
+                                    });
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-xl text-xs font-bold transition-colors cursor-pointer border border-sky-200"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  View File
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadCustomFile(fileUrl || '', filename)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs cursor-pointer"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  Download File
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Inline Preview Container */}
+                            <div className="bg-slate-50 border border-slate-200/70 rounded-xl overflow-hidden p-2">
+                              {isImage ? (
+                                fileUrl ? (
+                                  <div className="flex items-center justify-center bg-slate-900/5 rounded-lg max-h-48 overflow-hidden">
+                                    <img
+                                      src={fileUrl}
+                                      alt={filename}
+                                      className="max-h-48 w-auto object-contain cursor-pointer hover:opacity-95 transition-opacity"
+                                      onClick={() => setPreviewingCustomFile({
+                                        url: fileUrl,
+                                        filename,
+                                        fileType,
+                                        productName: it.productName,
+                                        orderId: viewingOrder.orderId
+                                      })}
+                                    />
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-amber-600 p-2 text-center">
+                                    File record exists, but file data is not available.
+                                  </p>
+                                )
+                              ) : isPdf ? (
+                                fileUrl ? (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between px-2 py-1 text-xs text-slate-700">
+                                      <span className="font-semibold flex items-center gap-1.5">
+                                        <FileText className="w-4 h-4 text-rose-500" /> PDF Document Preview
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setPreviewingCustomFile({
+                                          url: fileUrl,
+                                          filename,
+                                          fileType,
+                                          productName: it.productName,
+                                          orderId: viewingOrder.orderId
+                                        })}
+                                        className="text-sky-600 hover:underline text-xs font-medium cursor-pointer"
+                                      >
+                                        Open full reader ↗
+                                      </button>
+                                    </div>
+                                    <iframe
+                                      src={fileUrl}
+                                      title={filename}
+                                      className="w-full h-44 rounded-lg border border-slate-200 bg-white"
+                                    />
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-amber-600 p-2 text-center">
+                                    PDF record exists, but file data is not available.
+                                  </p>
+                                )
+                              ) : (
+                                <div className="p-3 text-center text-xs text-slate-500 space-y-1">
+                                  <p className="font-medium text-slate-700">Preview not supported for this file format ({fileType}).</p>
+                                  <p className="text-[11px]">Use the <strong>Download File</strong> button above to download and open it in your local desktop application.</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Payment & Delivery Summary */}
             <div className="flex items-center justify-between pt-2 border-t border-sky-100 text-xs">
@@ -2200,6 +2416,73 @@ export const AdminDashboard: React.FC = () => {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: CUSTOMIZATION FILE FULL-SIZE VIEWER */}
+      {/* ========================================================================= */}
+      {previewingCustomFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-hidden flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 bg-slate-50">
+              <div className="min-w-0 pr-4">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-sky-600 block">
+                  Order #{previewingCustomFile.orderId} • {previewingCustomFile.productName}
+                </span>
+                <h3 className="font-bold text-sm text-slate-900 truncate" title={previewingCustomFile.filename}>
+                  {previewingCustomFile.filename}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadCustomFile(previewingCustomFile.url, previewingCustomFile.filename)}
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-colors shadow-xs cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewingCustomFile(null)}
+                  className="p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-slate-950/5 min-h-[300px]">
+              {previewingCustomFile.fileType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(previewingCustomFile.filename) ? (
+                <img
+                  src={previewingCustomFile.url}
+                  alt={previewingCustomFile.filename}
+                  className="max-h-[75vh] w-auto max-w-full object-contain rounded-xl shadow-md"
+                />
+              ) : previewingCustomFile.fileType.includes('pdf') || /\.pdf$/i.test(previewingCustomFile.filename) ? (
+                <iframe
+                  src={previewingCustomFile.url}
+                  title={previewingCustomFile.filename}
+                  className="w-full h-[75vh] rounded-xl border border-slate-200 bg-white"
+                />
+              ) : (
+                <div className="text-center p-8 space-y-3">
+                  <p className="text-slate-700 font-bold text-sm">Preview not supported for this file format.</p>
+                  <p className="text-xs text-slate-500 max-w-md">
+                    This document format cannot be rendered directly in the browser preview. Please download the original file to view it on your device.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadCustomFile(previewingCustomFile.url, previewingCustomFile.filename)}
+                    className="inline-flex items-center gap-2 bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" /> Download Original File
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
