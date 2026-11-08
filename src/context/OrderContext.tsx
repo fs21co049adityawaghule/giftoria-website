@@ -71,6 +71,55 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [orders]);
 
+  // Synchronize orders with central backend database
+  const fetchGlobalOrders = async () => {
+    try {
+      const res = await fetch('/api/orders', {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const serverOrders: Order[] = Array.isArray(data) ? data : (data.orders || []);
+      
+      setOrders((prev) => {
+        const orderMap = new Map<string, Order>();
+        for (const ord of serverOrders) {
+          if (ord && ord.orderId) {
+            orderMap.set(ord.orderId.toLowerCase(), ord);
+          }
+        }
+        for (const localOrd of prev) {
+          if (localOrd && localOrd.orderId) {
+            const key = localOrd.orderId.toLowerCase();
+            const existing = orderMap.get(key);
+            if (!existing) {
+              orderMap.set(key, localOrd);
+            } else if (localOrd.updatedAt && (!existing.updatedAt || localOrd.updatedAt > existing.updatedAt)) {
+              orderMap.set(key, localOrd);
+            }
+          }
+        }
+        const merged = Array.from(orderMap.values()).sort(
+          (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        );
+
+        if (JSON.stringify(merged) === JSON.stringify(prev)) {
+          return prev;
+        }
+        return merged;
+      });
+    } catch (e) {
+      // Retain local orders gracefully if offline
+    }
+  };
+
+  // Poll for live order updates every 3.5 seconds
+  useEffect(() => {
+    fetchGlobalOrders();
+    const interval = setInterval(fetchGlobalOrders, 3500);
+    return () => clearInterval(interval);
+  }, []);
+
   // Submit UPI order with payment screenshot and unique Order ID + Payment ID
   const submitUpiOrder = (
     shippingAddress: ShippingAddress,
@@ -144,6 +193,25 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setOrders((prev) => [newOrder, ...prev]);
     clearCart();
+
+    // Persist immediately to central serverless backend
+    fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order: newOrder }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.order) {
+          setOrders((prev) =>
+            prev.map((o) => (o.orderId === newOrder.orderId ? { ...o, ...data.order } : o))
+          );
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to persist order to central database:', err);
+      });
+
     return newOrder;
   };
 
@@ -165,6 +233,19 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
     );
     showToast(`Payment Verified! Order #${orderId} confirmed.`, 'success');
+
+    fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        paymentStatus: 'Payment Verified',
+        orderStatus: 'Order Confirmed',
+        paymentVerifiedAt: now,
+        paymentVerifiedBy: adminName,
+        rejectionReason: null,
+      }),
+    }).catch(console.error);
   };
 
   // Admin rejects payment
@@ -185,6 +266,19 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
     );
     showToast(`Order #${orderId} payment rejected: ${reason}`, 'warning');
+
+    fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        paymentStatus: 'Payment Rejected',
+        orderStatus: 'Cancelled',
+        rejectionReason: reason,
+        cancelledAt: now,
+        cancellationReason: `Payment Rejected: ${reason}`,
+      }),
+    }).catch(console.error);
   };
 
   // Customer resubmits payment screenshot
@@ -206,6 +300,20 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
     );
     showToast('Payment screenshot resubmitted successfully! It is now under verification.', 'success');
+
+    fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        paymentScreenshot: screenshotDataUrl,
+        paymentScreenshotName: screenshotName,
+        paymentSubmittedAt: now,
+        paymentStatus: 'Payment Verification Pending',
+        orderStatus: 'Payment Verification Pending',
+        rejectionReason: null,
+      }),
+    }).catch(console.error);
   };
 
   const getOrderById = (orderId: string): Order | undefined => {
@@ -213,10 +321,12 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateOrderStatus = (orderId: string, status: OrderStatus, adminNotes?: string) => {
+    const now = new Date().toISOString();
+    let updatedDeliveryRec: DeliveryRecord | undefined;
+
     setOrders((prev) =>
       prev.map((ord) => {
         if (ord.orderId !== orderId) return ord;
-        const now = new Date().toISOString();
         
         let newDeliveryStatus = ord.deliveryRecord?.deliveryStatus;
         if (status === 'Shipped' || status === 'ORDER SHIPPED' || status === 'Dispatched') {
@@ -235,6 +345,8 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           : undefined;
 
+        updatedDeliveryRec = updatedDelivery;
+
         return {
           ...ord,
           orderStatus: status,
@@ -245,6 +357,17 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
     );
     showToast(`Order #${orderId} status set to ${status}`, 'success');
+
+    fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        orderStatus: status,
+        adminNotes: adminNotes,
+        deliveryRecord: updatedDeliveryRec,
+      }),
+    }).catch(console.error);
   };
 
   const updatePaymentStatus = (orderId: string, paymentStatus: PaymentStatus) => {
@@ -254,9 +377,19 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       )
     );
     showToast(`Order #${orderId} payment status updated to ${paymentStatus}`, 'success');
+
+    fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        paymentStatus,
+      }),
+    }).catch(console.error);
   };
 
   const updateDeliveryInfo = (orderId: string, deliveryUpdate: Partial<DeliveryRecord>) => {
+    let finalDeliveryRecord: DeliveryRecord | undefined;
     setOrders((prev) =>
       prev.map((ord) => {
         if (ord.orderId !== orderId) return ord;
@@ -278,6 +411,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           ...deliveryUpdate,
           updatedAt: now
         };
+        finalDeliveryRecord = mergedRecord;
 
         return {
           ...ord,
@@ -287,11 +421,24 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
     );
     showToast(`Delivery record updated for #${orderId}`, 'success');
+
+    if (finalDeliveryRecord) {
+      fetch('/api/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          deliveryRecord: finalDeliveryRecord,
+        }),
+      }).catch(console.error);
+    }
   };
 
   // Cancel order with recorded reason & timestamp
   const cancelOrder = (orderId: string, reason?: string) => {
     const now = new Date().toISOString();
+    const cancellationReason = reason || 'Cancelled by Admin';
+
     setOrders((prev) =>
       prev.map((ord) => {
         if (ord.orderId !== orderId) return ord;
@@ -299,12 +446,23 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           ...ord,
           orderStatus: 'Cancelled',
           cancelledAt: now,
-          cancellationReason: reason || 'Cancelled by Admin',
+          cancellationReason,
           updatedAt: now
         };
       })
     );
     showToast(`Order #${orderId} cancelled. Excluded from active sales & profit.`, 'warning');
+
+    fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        orderStatus: 'Cancelled',
+        cancelledAt: now,
+        cancellationReason,
+      }),
+    }).catch(console.error);
   };
 
   // Delete order (soft-delete / archive or permanent delete)
@@ -323,6 +481,10 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       );
       showToast(`Order #${orderId} archived/moved to trash.`, 'info');
     }
+
+    fetch(`/api/orders?orderId=${encodeURIComponent(orderId)}${permanent ? '&permanent=true' : ''}`, {
+      method: 'DELETE',
+    }).catch(console.error);
   };
 
   // Restore deleted/archived order
@@ -335,6 +497,16 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       )
     );
     showToast(`Order #${orderId} restored to active records.`, 'success');
+
+    fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        isDeleted: false,
+        deletedAt: null,
+      }),
+    }).catch(console.error);
   };
 
   // Update order general details (customer info, expected date, admin notes)
@@ -350,6 +522,15 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
     );
     showToast(`Order #${orderId} details updated.`, 'success');
+
+    fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        ...updates,
+      }),
+    }).catch(console.error);
   };
 
   // Initial order cleanup: resets active orders to 0
@@ -357,6 +538,10 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOrders([]);
     localStorage.removeItem(ORDERS_STORAGE_KEY);
     showToast('Orders cleared! Active orders count is now 0.', 'info');
+
+    fetch('/api/orders?clearAll=true', {
+      method: 'DELETE',
+    }).catch(console.error);
   };
 
   return (
